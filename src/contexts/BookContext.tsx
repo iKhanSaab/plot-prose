@@ -30,17 +30,26 @@ interface BookContextType extends AppState {
 
 const BookContext = createContext<BookContextType | null>(null);
 
+function getInitialBook(): Book {
+  try {
+    const saved = loadBook();
+    if (saved && saved.whiteboards && saved.chapters) return saved;
+  } catch {
+    // ignore
+  }
+  return defaultBook;
+}
+
 export function BookProvider({ children }: { children: React.ReactNode }) {
-  const [book, setBook] = useState<Book>(() => loadBook() || defaultBook);
+  const [initialBook] = useState(getInitialBook);
+  const [book, setBook] = useState<Book>(initialBook);
   const [activeView, setActiveView] = useState<ViewMode>('whiteboard');
-  const [activeWhiteboardId, setActiveWhiteboardId] = useState<string | null>(() => {
-    const b = loadBook() || defaultBook;
-    return b.whiteboards[0]?.id || null;
-  });
-  const [activeChapterId, setActiveChapterId] = useState<string | null>(() => {
-    const b = loadBook() || defaultBook;
-    return b.chapters[0]?.id || null;
-  });
+  const [activeWhiteboardId, setActiveWhiteboardId] = useState<string | null>(
+    initialBook.whiteboards[0]?.id || null
+  );
+  const [activeChapterId, setActiveChapterId] = useState<string | null>(
+    initialBook.chapters[0]?.id || null
+  );
   const [isEditorFocusMode, setIsEditorFocusMode] = useState(false);
 
   // Persist book to localStorage

@@ -1,5 +1,5 @@
-import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
-import { AppState, Book, Pin, WhiteboardSheet, Chapter, Draft, ViewMode, Tag } from '@/types/book';
+import React, { createContext, useContext, useState, useCallback } from 'react';
+import { AppState, Book, Pin, WhiteboardSheet, Chapter, Draft, ViewMode, Tag, Folder } from '@/types/book';
 import { defaultBook } from '@/data/defaultBook';
 import { loadBook, usePersistBook } from '@/hooks/useLocalStorage';
 
@@ -12,8 +12,8 @@ interface BookContextType extends AppState {
   addPin: (whiteboardId: string, pin: Pin) => void;
   deletePin: (whiteboardId: string, pinId: string) => void;
   updateDraftContent: (chapterId: string, draftId: string, content: string) => void;
-  addChapter: () => void;
-  addWhiteboard: () => void;
+  addChapter: (folderId?: string) => void;
+  addWhiteboard: (folderId?: string) => void;
   updateBookTitle: (title: string) => void;
   updateChapterTitle: (chapterId: string, title: string) => void;
   addDraft: (chapterId: string) => void;
@@ -26,6 +26,12 @@ interface BookContextType extends AppState {
   duplicateChapter: (chapterId: string) => void;
   duplicateWhiteboard: (whiteboardId: string) => void;
   updatePinTags: (whiteboardId: string, pinId: string, tags: Tag[]) => void;
+  // Folder operations
+  addFolder: (name?: string) => void;
+  renameFolder: (folderId: string, name: string) => void;
+  deleteFolder: (folderId: string) => void;
+  moveToFolder: (folderId: string, itemId: string, itemType: 'whiteboard' | 'chapter') => void;
+  removeFromFolder: (itemId: string, itemType: 'whiteboard' | 'chapter') => void;
 }
 
 const BookContext = createContext<BookContextType | null>(null);
@@ -33,7 +39,11 @@ const BookContext = createContext<BookContextType | null>(null);
 function getInitialBook(): Book {
   try {
     const saved = loadBook();
-    if (saved && saved.whiteboards && saved.chapters) return saved;
+    if (saved && saved.whiteboards && saved.chapters) {
+      // Migration: add folders if missing
+      if (!saved.folders) saved.folders = [];
+      return saved;
+    }
   } catch {
     // ignore
   }
@@ -52,7 +62,6 @@ export function BookProvider({ children }: { children: React.ReactNode }) {
   );
   const [isEditorFocusMode, setIsEditorFocusMode] = useState(false);
 
-  // Persist book to localStorage
   usePersistBook(book);
 
   const setActiveWhiteboard = useCallback((id: string) => {
@@ -121,7 +130,7 @@ export function BookProvider({ children }: { children: React.ReactNode }) {
     }));
   }, []);
 
-  const addChapter = useCallback(() => {
+  const addChapter = useCallback((folderId?: string) => {
     const newOrder = book.chapters.length + 1;
     const draftId = `draft-${Date.now()}`;
     const newChapter: Chapter = {
@@ -137,18 +146,30 @@ export function BookProvider({ children }: { children: React.ReactNode }) {
         updatedAt: new Date().toISOString(),
       }],
     };
-    setBook(prev => ({ ...prev, chapters: [...prev.chapters, newChapter] }));
+    setBook(prev => ({
+      ...prev,
+      chapters: [...prev.chapters, newChapter],
+      folders: folderId
+        ? prev.folders.map(f => f.id === folderId ? { ...f, chapterIds: [...f.chapterIds, newChapter.id] } : f)
+        : prev.folders,
+    }));
     setActiveChapterId(newChapter.id);
     setActiveView('chapter');
   }, [book.chapters.length]);
 
-  const addWhiteboard = useCallback(() => {
+  const addWhiteboard = useCallback((folderId?: string) => {
     const newWb: WhiteboardSheet = {
       id: `wb-${Date.now()}`,
       name: `Whiteboard ${book.whiteboards.length + 1}`,
       pins: [],
     };
-    setBook(prev => ({ ...prev, whiteboards: [...prev.whiteboards, newWb] }));
+    setBook(prev => ({
+      ...prev,
+      whiteboards: [...prev.whiteboards, newWb],
+      folders: folderId
+        ? prev.folders.map(f => f.id === folderId ? { ...f, whiteboardIds: [...f.whiteboardIds, newWb.id] } : f)
+        : prev.folders,
+    }));
     setActiveWhiteboardId(newWb.id);
     setActiveView('whiteboard');
   }, [book.whiteboards.length]);
@@ -232,18 +253,20 @@ export function BookProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const deleteChapter = useCallback((chapterId: string) => {
-    setBook(prev => {
-      const chapters = prev.chapters.filter(ch => ch.id !== chapterId);
-      return { ...prev, chapters };
-    });
+    setBook(prev => ({
+      ...prev,
+      chapters: prev.chapters.filter(ch => ch.id !== chapterId),
+      folders: prev.folders.map(f => ({ ...f, chapterIds: f.chapterIds.filter(id => id !== chapterId) })),
+    }));
     setActiveChapterId(prev => prev === chapterId ? null : prev);
   }, []);
 
   const deleteWhiteboard = useCallback((whiteboardId: string) => {
-    setBook(prev => {
-      const whiteboards = prev.whiteboards.filter(wb => wb.id !== whiteboardId);
-      return { ...prev, whiteboards };
-    });
+    setBook(prev => ({
+      ...prev,
+      whiteboards: prev.whiteboards.filter(wb => wb.id !== whiteboardId),
+      folders: prev.folders.map(f => ({ ...f, whiteboardIds: f.whiteboardIds.filter(id => id !== whiteboardId) })),
+    }));
     setActiveWhiteboardId(prev => prev === whiteboardId ? null : prev);
   }, []);
 
@@ -282,7 +305,6 @@ export function BookProvider({ children }: { children: React.ReactNode }) {
         name: `${wb.name} (Copy)`,
         pins: wb.pins.map(p => ({ ...p, id: `pin-${Date.now()}-${Math.random().toString(36).slice(2, 6)}` })),
       };
-      // Remap connections
       const idMap = new Map(wb.pins.map((p, i) => [p.id, newWb.pins[i].id]));
       newWb.pins = newWb.pins.map(p => ({
         ...p,
@@ -303,6 +325,63 @@ export function BookProvider({ children }: { children: React.ReactNode }) {
     }));
   }, []);
 
+  // ─── Folder operations ───
+
+  const addFolder = useCallback((name?: string) => {
+    const newFolder: Folder = {
+      id: `folder-${Date.now()}`,
+      name: name || `Folder ${book.folders.length + 1}`,
+      whiteboardIds: [],
+      chapterIds: [],
+      order: book.folders.length + 1,
+    };
+    setBook(prev => ({ ...prev, folders: [...prev.folders, newFolder] }));
+  }, [book.folders.length]);
+
+  const renameFolder = useCallback((folderId: string, name: string) => {
+    setBook(prev => ({
+      ...prev,
+      folders: prev.folders.map(f => f.id === folderId ? { ...f, name } : f),
+    }));
+  }, []);
+
+  const deleteFolder = useCallback((folderId: string) => {
+    setBook(prev => ({
+      ...prev,
+      folders: prev.folders.filter(f => f.id !== folderId),
+    }));
+  }, []);
+
+  const moveToFolder = useCallback((folderId: string, itemId: string, itemType: 'whiteboard' | 'chapter') => {
+    setBook(prev => ({
+      ...prev,
+      folders: prev.folders.map(f => {
+        // Remove from any folder first
+        const cleaned = itemType === 'whiteboard'
+          ? { ...f, whiteboardIds: f.whiteboardIds.filter(id => id !== itemId) }
+          : { ...f, chapterIds: f.chapterIds.filter(id => id !== itemId) };
+        // Add to target folder
+        if (cleaned.id === folderId) {
+          return itemType === 'whiteboard'
+            ? { ...cleaned, whiteboardIds: [...cleaned.whiteboardIds, itemId] }
+            : { ...cleaned, chapterIds: [...cleaned.chapterIds, itemId] };
+        }
+        return cleaned;
+      }),
+    }));
+  }, []);
+
+  const removeFromFolder = useCallback((itemId: string, itemType: 'whiteboard' | 'chapter') => {
+    setBook(prev => ({
+      ...prev,
+      folders: prev.folders.map(f =>
+        itemType === 'whiteboard'
+          ? { ...f, whiteboardIds: f.whiteboardIds.filter(id => id !== itemId) }
+          : { ...f, chapterIds: f.chapterIds.filter(id => id !== itemId) }
+      ),
+    }));
+  }, []);
+
   return (
     <BookContext.Provider value={{
       book, activeView, activeWhiteboardId, activeChapterId, isEditorFocusMode,
@@ -312,6 +391,7 @@ export function BookProvider({ children }: { children: React.ReactNode }) {
       addDraft, setActiveDraft, connectPins, disconnectPins,
       deleteChapter, deleteWhiteboard, renameWhiteboard,
       duplicateChapter, duplicateWhiteboard, updatePinTags,
+      addFolder, renameFolder, deleteFolder, moveToFolder, removeFromFolder,
     }}>
       {children}
     </BookContext.Provider>

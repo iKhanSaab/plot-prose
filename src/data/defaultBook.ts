@@ -3,6 +3,15 @@ import { Book } from '@/types/book';
 export const defaultBook: Book = {
   id: 'book-1',
   title: 'My Novel',
+  folders: [
+    {
+      id: 'folder-1',
+      name: 'Act I',
+      whiteboardIds: ['wb-1'],
+      chapterIds: ['ch-1', 'ch-2'],
+      order: 1,
+    },
+  ],
   whiteboards: [
     {
       id: 'wb-1',

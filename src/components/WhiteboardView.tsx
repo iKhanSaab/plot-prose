@@ -1,6 +1,6 @@
 import { useBook } from '@/contexts/BookContext';
 import { Pin as PinType, TagColor } from '@/types/book';
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, memo, useEffect } from 'react';
 import { Plus, GripVertical, X, Link, Tag, ImagePlus, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { TagEditor } from './TagEditor';
@@ -12,7 +12,7 @@ const TAG_STYLES: Record<TagColor, string> = {
   lavender: 'bg-tag-lavender text-tag-lavender-text',
 };
 
-function PinCard({
+const PinCard = memo(function PinCard({
   pin,
   whiteboardId,
   isSelected,
@@ -36,6 +36,12 @@ function PinCard({
   const [title, setTitle] = useState(pin.title);
   const [content, setContent] = useState(pin.content);
   const [imageUrl, setImageUrl] = useState(pin.imageUrl || '');
+  const cardRef = useRef<HTMLDivElement>(null);
+
+  // Sync local state when pin changes externally
+  useEffect(() => { setTitle(pin.title); }, [pin.title]);
+  useEffect(() => { setContent(pin.content); }, [pin.content]);
+  useEffect(() => { setImageUrl(pin.imageUrl || ''); }, [pin.imageUrl]);
 
   const handleSave = () => {
     updatePin(whiteboardId, { ...pin, title, content });
@@ -44,13 +50,15 @@ function PinCard({
 
   return (
     <div
+      ref={cardRef}
+      data-pin-id={pin.id}
       className={cn(
-        'absolute bg-pin-bg border rounded-lg shadow-sm transition-shadow animate-scale-in cursor-grab active:cursor-grabbing',
+        'absolute bg-pin-bg border rounded-lg shadow-sm transition-shadow cursor-grab active:cursor-grabbing',
         'min-w-[200px] max-w-[280px]',
         isSelected ? 'border-primary ring-2 ring-primary/20 shadow-md' : 'border-pin-border hover:shadow-md',
         isConnecting && 'ring-2 ring-connection/40'
       )}
-      style={{ left: pin.x, top: pin.y }}
+      style={{ left: pin.x, top: pin.y, willChange: 'transform' }}
       onClick={(e) => { e.stopPropagation(); onSelect(pin.id); }}
       onMouseDown={(e) => {
         if ((e.target as HTMLElement).closest('.no-drag')) return;
@@ -202,105 +210,208 @@ function PinCard({
       )}
     </div>
   );
-}
+});
 
 export function WhiteboardView() {
   const { book, activeWhiteboardId, addPin, updatePin, connectPins, disconnectPins } = useBook();
   const whiteboard = book.whiteboards.find(wb => wb.id === activeWhiteboardId);
   const canvasRef = useRef<HTMLDivElement>(null);
+  const transformRef = useRef<HTMLDivElement>(null);
   const [selectedPin, setSelectedPin] = useState<string | null>(null);
   const [connectingFrom, setConnectingFrom] = useState<string | null>(null);
-  const [dragState, setDragState] = useState<{ pinId: string; offsetX: number; offsetY: number } | null>(null);
 
-  // Zoom & pan state
-  const [zoom, setZoom] = useState(1);
-  const [pan, setPan] = useState({ x: 0, y: 0 });
-  const [isPanning, setIsPanning] = useState(false);
-  const panStart = useRef({ x: 0, y: 0, panX: 0, panY: 0 });
+  // Use refs for drag/pan/zoom to avoid re-renders during interaction
+  const dragRef = useRef<{ pinId: string; offsetX: number; offsetY: number; startX: number; startY: number } | null>(null);
+  const zoomRef = useRef(1);
+  const panRef = useRef({ x: 0, y: 0 });
+  const isPanningRef = useRef(false);
+  const panStartRef = useRef({ x: 0, y: 0, panX: 0, panY: 0 });
+  const rafRef = useRef<number>(0);
 
-  const handleCanvasClick = (e: React.MouseEvent) => {
+  // State only for toolbar display (updated less frequently)
+  const [displayZoom, setDisplayZoom] = useState(100);
+  const [, forceRender] = useState(0);
+
+  const applyTransform = useCallback(() => {
+    if (transformRef.current) {
+      transformRef.current.style.transform = `translate(${panRef.current.x}px, ${panRef.current.y}px) scale(${zoomRef.current})`;
+    }
+  }, []);
+
+  const handleCanvasClick = useCallback((e: React.MouseEvent) => {
     if (connectingFrom) {
       setConnectingFrom(null);
       return;
     }
     setSelectedPin(null);
-  };
+  }, [connectingFrom]);
 
-  const handleAddPin = () => {
+  const handleAddPin = useCallback(() => {
     if (!whiteboard) return;
     const newPin: PinType = {
       id: `pin-${Date.now()}`,
-      x: (-pan.x + 300) / zoom + Math.random() * 200,
-      y: (-pan.y + 200) / zoom + Math.random() * 150,
+      x: (-panRef.current.x + 300) / zoomRef.current + Math.random() * 200,
+      y: (-panRef.current.y + 200) / zoomRef.current + Math.random() * 150,
       title: 'New Pin',
       content: '',
       tags: [],
       connections: [],
     };
     addPin(whiteboard.id, newPin);
-  };
+  }, [whiteboard, addPin]);
 
   const handleDragStart = useCallback((pinId: string, e: React.MouseEvent) => {
-    if (!whiteboard || isPanning) return;
+    if (!whiteboard || isPanningRef.current) return;
     const pin = whiteboard.pins.find(p => p.id === pinId);
     if (!pin) return;
-    setDragState({
+    dragRef.current = {
       pinId,
-      offsetX: e.clientX / zoom - pin.x,
-      offsetY: e.clientY / zoom - pin.y,
-    });
-  }, [whiteboard, zoom, isPanning]);
+      offsetX: e.clientX / zoomRef.current - pin.x,
+      offsetY: e.clientY / zoomRef.current - pin.y,
+      startX: pin.x,
+      startY: pin.y,
+    };
+  }, [whiteboard]);
 
-  const handleMouseMove = useCallback((e: React.MouseEvent) => {
-    // Pan
-    if (isPanning) {
-      setPan({
-        x: panStart.current.panX + (e.clientX - panStart.current.x),
-        y: panStart.current.panY + (e.clientY - panStart.current.y),
+  // Use native event listeners for mousemove/mouseup to avoid React overhead
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      // Pan
+      if (isPanningRef.current) {
+        panRef.current = {
+          x: panStartRef.current.panX + (e.clientX - panStartRef.current.x),
+          y: panStartRef.current.panY + (e.clientY - panStartRef.current.y),
+        };
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = requestAnimationFrame(applyTransform);
+        return;
+      }
+
+      // Drag pin — move DOM element directly, no state update
+      const drag = dragRef.current;
+      if (!drag) return;
+      const newX = Math.max(0, e.clientX / zoomRef.current - drag.offsetX);
+      const newY = Math.max(0, e.clientY / zoomRef.current - drag.offsetY);
+
+      const el = canvas.querySelector(`[data-pin-id="${drag.pinId}"]`) as HTMLElement;
+      if (el) {
+        el.style.left = `${newX}px`;
+        el.style.top = `${newY}px`;
+      }
+
+      // Update SVG lines in real-time
+      const svgLines = canvas.querySelectorAll(`[data-conn-from="${drag.pinId}"], [data-conn-to="${drag.pinId}"]`);
+      svgLines.forEach(line => {
+        const fromId = line.getAttribute('data-conn-from')!;
+        const toId = line.getAttribute('data-conn-to')!;
+        const isFrom = fromId === drag.pinId;
+
+        let fx: number, fy: number, tx: number, ty: number;
+
+        if (isFrom) {
+          fx = newX + 100; fy = newY + 40;
+          const toEl = canvas.querySelector(`[data-pin-id="${toId}"]`) as HTMLElement;
+          if (!toEl) return;
+          tx = parseFloat(toEl.style.left) + 100;
+          ty = parseFloat(toEl.style.top) + 40;
+        } else {
+          tx = newX + 100; ty = newY + 40;
+          const fromEl = canvas.querySelector(`[data-pin-id="${fromId}"]`) as HTMLElement;
+          if (!fromEl) return;
+          fx = parseFloat(fromEl.style.left) + 100;
+          fy = parseFloat(fromEl.style.top) + 40;
+        }
+
+        const mx = (fx + tx) / 2;
+        const d = `M ${fx} ${fy} C ${mx} ${fy}, ${mx} ${ty}, ${tx} ${ty}`;
+        // Update both visual and hit-area paths
+        const paths = line.querySelectorAll('path');
+        paths.forEach(p => p.setAttribute('d', d));
       });
-      return;
-    }
-    // Drag pin
-    if (!dragState || !whiteboard) return;
-    const newX = Math.max(0, e.clientX / zoom - dragState.offsetX);
-    const newY = Math.max(0, e.clientY / zoom - dragState.offsetY);
-    const pin = whiteboard.pins.find(p => p.id === dragState.pinId);
-    if (pin) {
-      updatePin(whiteboard.id, { ...pin, x: newX, y: newY });
-    }
-  }, [dragState, whiteboard, updatePin, zoom, isPanning]);
 
-  const handleMouseUp = useCallback(() => {
-    setDragState(null);
-    setIsPanning(false);
-  }, []);
+      // Store current position for commit
+      drag.startX = newX;
+      drag.startY = newY;
+    };
 
-  const handleWheel = useCallback((e: React.WheelEvent) => {
-    e.preventDefault();
-    const delta = e.deltaY > 0 ? -0.1 : 0.1;
-    setZoom(z => Math.min(3, Math.max(0.25, z + delta)));
-  }, []);
+    const handleMouseUp = () => {
+      // Commit drag position to state
+      const drag = dragRef.current;
+      if (drag && whiteboard) {
+        const pin = whiteboard.pins.find(p => p.id === drag.pinId);
+        if (pin && (pin.x !== drag.startX || pin.y !== drag.startY)) {
+          updatePin(whiteboard.id, { ...pin, x: drag.startX, y: drag.startY });
+        }
+      }
+      dragRef.current = null;
+      if (isPanningRef.current) {
+        isPanningRef.current = false;
+        canvas.style.cursor = '';
+      }
+    };
+
+    canvas.addEventListener('mousemove', handleMouseMove);
+    canvas.addEventListener('mouseup', handleMouseUp);
+    canvas.addEventListener('mouseleave', handleMouseUp);
+
+    return () => {
+      canvas.removeEventListener('mousemove', handleMouseMove);
+      canvas.removeEventListener('mouseup', handleMouseUp);
+      canvas.removeEventListener('mouseleave', handleMouseUp);
+    };
+  }, [whiteboard, updatePin, applyTransform]);
+
+  // Wheel handler — native for passive: false
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const handleWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const delta = e.deltaY > 0 ? -0.1 : 0.1;
+      zoomRef.current = Math.min(3, Math.max(0.25, zoomRef.current + delta));
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = requestAnimationFrame(() => {
+        applyTransform();
+        setDisplayZoom(Math.round(zoomRef.current * 100));
+      });
+    };
+
+    canvas.addEventListener('wheel', handleWheel, { passive: false });
+    return () => canvas.removeEventListener('wheel', handleWheel);
+  }, [applyTransform]);
 
   const handleMiddleMouseDown = useCallback((e: React.MouseEvent) => {
     if (e.button === 1 || (e.button === 0 && e.altKey)) {
       e.preventDefault();
-      setIsPanning(true);
-      panStart.current = { x: e.clientX, y: e.clientY, panX: pan.x, panY: pan.y };
+      isPanningRef.current = true;
+      if (canvasRef.current) canvasRef.current.style.cursor = 'grabbing';
+      panStartRef.current = { x: e.clientX, y: e.clientY, panX: panRef.current.x, panY: panRef.current.y };
     }
-  }, [pan]);
+  }, []);
 
-  const handlePinSelect = (pinId: string) => {
+  const handlePinSelect = useCallback((pinId: string) => {
     if (connectingFrom && connectingFrom !== pinId && whiteboard) {
       connectPins(whiteboard.id, connectingFrom, pinId);
       setConnectingFrom(null);
       return;
     }
     setSelectedPin(pinId);
-  };
+  }, [connectingFrom, whiteboard, connectPins]);
 
-  const handleStartConnect = (pinId: string) => {
+  const handleStartConnect = useCallback((pinId: string) => {
     setConnectingFrom(pinId);
-  };
+  }, []);
+
+  const handleResetView = useCallback(() => {
+    zoomRef.current = 1;
+    panRef.current = { x: 0, y: 0 };
+    applyTransform();
+    setDisplayZoom(100);
+  }, [applyTransform]);
 
   if (!whiteboard) {
     return (
@@ -330,11 +441,11 @@ export function WhiteboardView() {
       <div className="flex items-center justify-between px-4 py-2 border-b border-border bg-background/80 backdrop-blur-sm">
         <div>
           <h2 className="font-display text-lg font-semibold">{whiteboard.name}</h2>
-          <p className="text-xs text-muted-foreground">{whiteboard.pins.length} pins · {Math.round(zoom * 100)}%</p>
+          <p className="text-xs text-muted-foreground">{whiteboard.pins.length} pins · {displayZoom}%</p>
         </div>
         <div className="flex items-center gap-2">
           <button
-            onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); }}
+            onClick={handleResetView}
             className="px-2 py-1 text-xs text-muted-foreground hover:text-foreground border border-border rounded transition-colors"
           >
             Reset view
@@ -352,12 +463,8 @@ export function WhiteboardView() {
       {/* Canvas */}
       <div
         ref={canvasRef}
-        className={cn('flex-1 relative canvas-grid overflow-hidden', isPanning && 'cursor-grabbing')}
+        className="flex-1 relative canvas-grid overflow-hidden"
         onClick={handleCanvasClick}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseUp}
-        onWheel={handleWheel}
         onMouseDown={handleMiddleMouseDown}
       >
         {/* Connecting indicator */}
@@ -374,12 +481,14 @@ export function WhiteboardView() {
 
         {/* Transformed canvas content */}
         <div
+          ref={transformRef}
           style={{
-            transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+            transform: `translate(${panRef.current.x}px, ${panRef.current.y}px) scale(${zoomRef.current})`,
             transformOrigin: '0 0',
             position: 'relative',
             minWidth: '3000px',
             minHeight: '2000px',
+            willChange: 'transform',
           }}
         >
           {/* Connection lines SVG */}
@@ -395,16 +504,16 @@ export function WhiteboardView() {
               const x2 = to.x + 100;
               const y2 = to.y + 40;
               const mx = (x1 + x2) / 2;
+              const d = `M ${x1} ${y1} C ${mx} ${y1}, ${mx} ${y2}, ${x2} ${y2}`;
               return (
-                <g key={key}>
+                <g key={key} data-conn-from={from.id} data-conn-to={to.id}>
                   <path
-                    d={`M ${x1} ${y1} C ${mx} ${y1}, ${mx} ${y2}, ${x2} ${y2}`}
+                    d={d}
                     className="connection-line"
                     markerEnd="url(#arrowhead)"
                   />
-                  {/* Hover hit area to disconnect */}
                   <path
-                    d={`M ${x1} ${y1} C ${mx} ${y1}, ${mx} ${y2}, ${x2} ${y2}`}
+                    d={d}
                     stroke="transparent"
                     strokeWidth="12"
                     fill="none"

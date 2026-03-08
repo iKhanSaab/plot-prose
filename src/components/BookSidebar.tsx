@@ -251,28 +251,41 @@ export function SidebarContent({ onItemSelect, onOpenSearch, onOpenShortcuts }: 
       ? [{ label: 'Move to folder', icon: <ArrowRightFromLine className="h-3 w-3" />, onClick: () => {}, children: book.folders.map(f => ({ label: f.name, onClick: () => moveToFolder(f.id, itemId, itemType) })) }]
       : [];
 
-  const wbContextItems = (wbId: string, inFolder: boolean): ContextMenuItem[] => [
-    { label: 'Rename', icon: <Edit2 className="h-3.5 w-3.5" />, onClick: () => setRenaming({ id: wbId, type: 'wb' }) },
-    { label: 'Duplicate', icon: <Copy className="h-3.5 w-3.5" />, onClick: () => duplicateWhiteboard(wbId) },
-    ...moveToFolderSubmenu(wbId, 'whiteboard'),
-    ...(inFolder ? [{ label: 'Remove from folder', icon: <ArrowRightFromLine className="h-3.5 w-3.5" />, onClick: () => removeFromFolder(wbId, 'whiteboard') }] : []),
-    { label: 'Delete', icon: <Trash2 className="h-3.5 w-3.5" />, onClick: () => deleteWhiteboard(wbId), destructive: true },
-  ];
+  const confirmDelete = (title: string, description: string, onConfirm: () => void) => {
+    setConfirmDialog({ title, description, onConfirm });
+  };
 
-  const chContextItems = (chId: string, inFolder: boolean): ContextMenuItem[] => [
-    { label: 'Rename', icon: <Edit2 className="h-3.5 w-3.5" />, onClick: () => setRenaming({ id: chId, type: 'ch' }) },
-    { label: 'Duplicate', icon: <Copy className="h-3.5 w-3.5" />, onClick: () => duplicateChapter(chId) },
-    ...moveToFolderSubmenu(chId, 'chapter'),
-    ...(inFolder ? [{ label: 'Remove from folder', icon: <ArrowRightFromLine className="h-3.5 w-3.5" />, onClick: () => removeFromFolder(chId, 'chapter') }] : []),
-    { label: 'Delete', icon: <Trash2 className="h-3.5 w-3.5" />, onClick: () => deleteChapter(chId), destructive: true },
-  ];
+  const wbContextItems = (wbId: string, inFolder: boolean): ContextMenuItem[] => {
+    const wb = book.whiteboards.find(w => w.id === wbId);
+    return [
+      { label: 'Rename', icon: <Edit2 className="h-3.5 w-3.5" />, onClick: () => setRenaming({ id: wbId, type: 'wb' }) },
+      { label: 'Duplicate', icon: <Copy className="h-3.5 w-3.5" />, onClick: () => { duplicateWhiteboard(wbId); toast({ title: 'Board duplicated' }); } },
+      ...moveToFolderSubmenu(wbId, 'whiteboard'),
+      ...(inFolder ? [{ label: 'Remove from folder', icon: <ArrowRightFromLine className="h-3.5 w-3.5" />, onClick: () => removeFromFolder(wbId, 'whiteboard') }] : []),
+      { label: 'Delete', icon: <Trash2 className="h-3.5 w-3.5" />, onClick: () => confirmDelete('Delete board?', `"${wb?.name}" and all its pins will be permanently deleted.`, () => { deleteWhiteboard(wbId); toast({ title: 'Board deleted' }); }), destructive: true },
+    ];
+  };
 
-  const folderContextItems = (folderId: string): ContextMenuItem[] => [
-    { label: 'Rename', icon: <Edit2 className="h-3.5 w-3.5" />, onClick: () => setRenaming({ id: folderId, type: 'folder' }) },
-    { label: 'New board inside', icon: <Layout className="h-3.5 w-3.5" />, onClick: () => addWhiteboard(folderId) },
-    { label: 'New chapter inside', icon: <FileText className="h-3.5 w-3.5" />, onClick: () => addChapter(folderId) },
-    { label: 'Delete folder', icon: <Trash2 className="h-3.5 w-3.5" />, onClick: () => deleteFolder(folderId), destructive: true },
-  ];
+  const chContextItems = (chId: string, inFolder: boolean): ContextMenuItem[] => {
+    const ch = book.chapters.find(c => c.id === chId);
+    return [
+      { label: 'Rename', icon: <Edit2 className="h-3.5 w-3.5" />, onClick: () => setRenaming({ id: chId, type: 'ch' }) },
+      { label: 'Duplicate', icon: <Copy className="h-3.5 w-3.5" />, onClick: () => { duplicateChapter(chId); toast({ title: 'Chapter duplicated' }); } },
+      ...moveToFolderSubmenu(chId, 'chapter'),
+      ...(inFolder ? [{ label: 'Remove from folder', icon: <ArrowRightFromLine className="h-3.5 w-3.5" />, onClick: () => removeFromFolder(chId, 'chapter') }] : []),
+      { label: 'Delete', icon: <Trash2 className="h-3.5 w-3.5" />, onClick: () => confirmDelete('Delete chapter?', `"${ch?.title}" and all its drafts will be permanently deleted.`, () => { deleteChapter(chId); toast({ title: 'Chapter deleted' }); }), destructive: true },
+    ];
+  };
+
+  const folderContextItems = (folderId: string): ContextMenuItem[] => {
+    const f = book.folders.find(fo => fo.id === folderId);
+    return [
+      { label: 'Rename', icon: <Edit2 className="h-3.5 w-3.5" />, onClick: () => setRenaming({ id: folderId, type: 'folder' }) },
+      { label: 'New board inside', icon: <Layout className="h-3.5 w-3.5" />, onClick: () => { addWhiteboard(folderId); toast({ title: 'Board created' }); } },
+      { label: 'New chapter inside', icon: <FileText className="h-3.5 w-3.5" />, onClick: () => { addChapter(folderId); toast({ title: 'Chapter created' }); } },
+      { label: 'Delete folder', icon: <Trash2 className="h-3.5 w-3.5" />, onClick: () => confirmDelete('Delete folder?', `"${f?.name}" will be deleted. Items inside will be ungrouped, not deleted.`, () => { deleteFolder(folderId); toast({ title: 'Folder deleted' }); }), destructive: true },
+    ];
+  };
 
   const renderWbItem = (wb: typeof book.whiteboards[0], inFolder: boolean) => {
     const isActive = activeView === 'whiteboard' && activeWhiteboardId === wb.id;

@@ -12,6 +12,7 @@ export interface Pin {
   y: number;
   title: string;
   content: string;
+  imageUrl?: string;
   tags: Tag[];
   connections: string[]; // other pin IDs
 }

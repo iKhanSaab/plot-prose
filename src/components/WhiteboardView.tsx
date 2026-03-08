@@ -1,7 +1,7 @@
 import { useBook } from '@/contexts/BookContext';
 import { Pin as PinType, TagColor } from '@/types/book';
 import { useState, useRef, useCallback } from 'react';
-import { Plus, GripVertical, X, Link, Tag } from 'lucide-react';
+import { Plus, GripVertical, X, Link, Tag, ImagePlus, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { TagEditor } from './TagEditor';
 

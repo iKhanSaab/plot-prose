@@ -382,6 +382,10 @@ export function SidebarContent({ onItemSelect, onOpenSearch, onOpenShortcuts }: 
 
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto p-2 space-y-0.5">
+          {/* Ungrouped items */}
+          {ungroupedWbs.map(wb => renderWbItem(wb, false))}
+          {ungroupedChs.map(ch => renderChItem(ch, false))}
+
           {/* Folders */}
           {book.folders.map(folder => {
             const isOpen = openFolders.has(folder.id);
@@ -422,10 +426,6 @@ export function SidebarContent({ onItemSelect, onOpenSearch, onOpenShortcuts }: 
               </div>
             );
           })}
-
-          {/* Ungrouped items */}
-          {ungroupedWbs.map(wb => renderWbItem(wb, false))}
-          {ungroupedChs.map(ch => renderChItem(ch, false))}
         </nav>
 
         {/* Footer */}

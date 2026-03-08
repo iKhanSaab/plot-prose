@@ -15,6 +15,8 @@ interface BookContextType extends AppState {
   updateBookTitle: (title: string) => void;
   updateChapterTitle: (chapterId: string, title: string) => void;
   addDraft: (chapterId: string) => void;
+  deleteDraft: (chapterId: string, draftId: string) => void;
+  renameDraft: (chapterId: string, draftId: string, name: string) => void;
   setActiveDraft: (chapterId: string, draftId: string) => void;
   connectPins: (whiteboardId: string, pinId1: string, pinId2: string) => void;
   disconnectPins: (whiteboardId: string, pinId1: string, pinId2: string) => void;

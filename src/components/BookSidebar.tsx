@@ -1,11 +1,15 @@
 import { useBook } from '@/contexts/BookContext';
+import { useLibrary } from '@/contexts/LibraryContext';
 import {
-  BookOpen, Layout, FileText, Plus, ChevronDown, ChevronRight, PenTool,
+  Layout, FileText, Plus, ChevronDown, ChevronRight, PenTool,
   Trash2, Copy, Edit2, FolderOpen, FolderPlus, ArrowRightFromLine,
+  BookOpen, Check, MoreHorizontal,
 } from 'lucide-react';
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { cn } from '@/lib/utils';
 import { DarkModeToggle } from './DarkModeToggle';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Button } from '@/components/ui/button';
 
 /* ─── Context Menu ─── */
 function ContextMenu({
@@ -27,22 +31,12 @@ function ContextMenu({
   }, [onClose]);
 
   return (
-    <div
-      ref={ref}
-      className="fixed bg-popover border border-border rounded-md shadow-lg py-1 z-50 min-w-[160px] animate-fade-in"
-      style={{ left: x, top: y }}
-    >
+    <div ref={ref} className="fixed bg-popover border border-border rounded-md shadow-lg py-1 z-50 min-w-[160px] animate-fade-in" style={{ left: x, top: y }}>
       {items.map((item, i) => (
-        <div key={i} className="relative"
-          onMouseEnter={() => item.children && setSubOpen(i)}
-          onMouseLeave={() => setSubOpen(null)}
-        >
+        <div key={i} className="relative" onMouseEnter={() => item.children && setSubOpen(i)} onMouseLeave={() => setSubOpen(null)}>
           <button
             onClick={() => { if (!item.children) { item.onClick(); onClose(); } }}
-            className={cn(
-              'flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-muted transition-colors',
-              item.destructive && 'text-destructive hover:bg-destructive/10'
-            )}
+            className={cn('flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-muted transition-colors', item.destructive && 'text-destructive hover:bg-destructive/10')}
           >
             {item.icon}
             {item.label}
@@ -51,11 +45,7 @@ function ContextMenu({
           {item.children && subOpen === i && (
             <div className="absolute left-full top-0 bg-popover border border-border rounded-md shadow-lg py-1 min-w-[140px]">
               {item.children.map((sub, j) => (
-                <button
-                  key={j}
-                  onClick={() => { sub.onClick(); onClose(); }}
-                  className="flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-muted transition-colors"
-                >
+                <button key={j} onClick={() => { sub.onClick(); onClose(); }} className="flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-muted transition-colors">
                   {sub.label}
                 </button>
               ))}
@@ -83,6 +73,79 @@ function InlineRename({ value, onSave, onCancel }: { value: string; onSave: (v: 
   );
 }
 
+/* ─── Novel Picker ─── */
+function NovelPicker() {
+  const { library, activeBook, addNovel, switchNovel, renameNovel, deleteNovel } = useLibrary();
+  const [open, setOpen] = useState(false);
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button className="flex items-center gap-2 w-full px-3 py-2.5 hover:bg-sidebar-accent/50 transition-colors rounded-md">
+          <BookOpen className="h-4 w-4 text-primary shrink-0" />
+          <span className="font-display text-sm font-semibold text-sidebar-foreground truncate flex-1 text-left">
+            {activeBook.title}
+          </span>
+          <ChevronDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-60 p-1" align="start" sideOffset={4}>
+        <div className="space-y-0.5">
+          {library.books.map(b => (
+            <div key={b.id} className="group flex items-center">
+              {renamingId === b.id ? (
+                <div className="flex-1 px-2 py-1">
+                  <InlineRename
+                    value={b.title}
+                    onSave={v => { renameNovel(b.id, v); setRenamingId(null); }}
+                    onCancel={() => setRenamingId(null)}
+                  />
+                </div>
+              ) : (
+                <button
+                  onClick={() => { switchNovel(b.id); setOpen(false); }}
+                  className={cn(
+                    'flex items-center gap-2 flex-1 px-2 py-1.5 text-sm rounded-sm transition-colors',
+                    b.id === activeBook.id ? 'bg-sidebar-accent text-sidebar-accent-foreground' : 'hover:bg-muted'
+                  )}
+                >
+                  {b.id === activeBook.id && <Check className="h-3 w-3 text-primary" />}
+                  <span className="truncate">{b.title}</span>
+                  <span className="ml-auto text-[10px] text-muted-foreground">{b.chapters.length}ch</span>
+                </button>
+              )}
+              <button
+                onClick={e => { e.stopPropagation(); setRenamingId(b.id); }}
+                className="opacity-0 group-hover:opacity-100 p-1 hover:bg-muted rounded transition-all"
+              >
+                <Edit2 className="h-3 w-3 text-muted-foreground" />
+              </button>
+              {library.books.length > 1 && (
+                <button
+                  onClick={e => { e.stopPropagation(); deleteNovel(b.id); }}
+                  className="opacity-0 group-hover:opacity-100 p-1 hover:bg-destructive/10 rounded transition-all"
+                >
+                  <Trash2 className="h-3 w-3 text-destructive" />
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+        <div className="border-t border-border mt-1 pt-1">
+          <button
+            onClick={() => { addNovel(); setOpen(false); }}
+            className="flex items-center gap-2 w-full px-2 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:bg-muted rounded-sm transition-colors"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            New Novel
+          </button>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 /* ─── Main Sidebar ─── */
 export function BookSidebar() {
   const {
@@ -93,14 +156,10 @@ export function BookSidebar() {
     addFolder, renameFolder, deleteFolder, moveToFolder, removeFromFolder,
   } = useBook();
 
-  const [foldersOpen, setFoldersOpen] = useState(true);
-  const [wbOpen, setWbOpen] = useState(true);
-  const [chOpen, setChOpen] = useState(true);
   const [openFolders, setOpenFolders] = useState<Set<string>>(() => new Set(book.folders.map(f => f.id)));
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; items: any[] } | null>(null);
   const [renaming, setRenaming] = useState<{ id: string; type: 'wb' | 'ch' | 'folder' } | null>(null);
 
-  // Compute which items are inside any folder
   const folderItemIds = useMemo(() => {
     const wbIds = new Set<string>();
     const chIds = new Set<string>();
@@ -122,41 +181,31 @@ export function BookSidebar() {
     });
   };
 
-  // ─── Context menu builders ───
   const moveToFolderSubmenu = (itemId: string, itemType: 'whiteboard' | 'chapter') =>
     book.folders.length > 0
-      ? [{
-          label: 'Move to folder', icon: <ArrowRightFromLine className="h-3 w-3" />, onClick: () => {},
-          children: book.folders.map(f => ({ label: f.name, onClick: () => moveToFolder(f.id, itemId, itemType) })),
-        }]
+      ? [{ label: 'Move to folder', icon: <ArrowRightFromLine className="h-3 w-3" />, onClick: () => {}, children: book.folders.map(f => ({ label: f.name, onClick: () => moveToFolder(f.id, itemId, itemType) })) }]
       : [];
 
-  const wbContextItems = (wbId: string, inFolder: boolean) => {
-    const wb = book.whiteboards.find(w => w.id === wbId);
-    if (!wb) return [];
-    return [
-      { label: 'Rename', icon: <Edit2 className="h-3 w-3" />, onClick: () => setRenaming({ id: wbId, type: 'wb' }) },
-      { label: 'Duplicate', icon: <Copy className="h-3 w-3" />, onClick: () => duplicateWhiteboard(wbId) },
-      ...moveToFolderSubmenu(wbId, 'whiteboard'),
-      ...(inFolder ? [{ label: 'Remove from folder', icon: <ArrowRightFromLine className="h-3 w-3" />, onClick: () => removeFromFolder(wbId, 'whiteboard') }] : []),
-      { label: 'Delete', icon: <Trash2 className="h-3 w-3" />, onClick: () => deleteWhiteboard(wbId), destructive: true },
-    ];
-  };
+  const wbContextItems = (wbId: string, inFolder: boolean) => [
+    { label: 'Rename', icon: <Edit2 className="h-3 w-3" />, onClick: () => setRenaming({ id: wbId, type: 'wb' }) },
+    { label: 'Duplicate', icon: <Copy className="h-3 w-3" />, onClick: () => duplicateWhiteboard(wbId) },
+    ...moveToFolderSubmenu(wbId, 'whiteboard'),
+    ...(inFolder ? [{ label: 'Remove from folder', icon: <ArrowRightFromLine className="h-3 w-3" />, onClick: () => removeFromFolder(wbId, 'whiteboard') }] : []),
+    { label: 'Delete', icon: <Trash2 className="h-3 w-3" />, onClick: () => deleteWhiteboard(wbId), destructive: true },
+  ];
 
-  const chContextItems = (chId: string, inFolder: boolean) => {
-    const ch = book.chapters.find(c => c.id === chId);
-    if (!ch) return [];
-    return [
-      { label: 'Rename', icon: <Edit2 className="h-3 w-3" />, onClick: () => setRenaming({ id: chId, type: 'ch' }) },
-      { label: 'Duplicate', icon: <Copy className="h-3 w-3" />, onClick: () => duplicateChapter(chId) },
-      ...moveToFolderSubmenu(chId, 'chapter'),
-      ...(inFolder ? [{ label: 'Remove from folder', icon: <ArrowRightFromLine className="h-3 w-3" />, onClick: () => removeFromFolder(chId, 'chapter') }] : []),
-      { label: 'Delete', icon: <Trash2 className="h-3 w-3" />, onClick: () => deleteChapter(chId), destructive: true },
-    ];
-  };
+  const chContextItems = (chId: string, inFolder: boolean) => [
+    { label: 'Rename', icon: <Edit2 className="h-3 w-3" />, onClick: () => setRenaming({ id: chId, type: 'ch' }) },
+    { label: 'Duplicate', icon: <Copy className="h-3 w-3" />, onClick: () => duplicateChapter(chId) },
+    ...moveToFolderSubmenu(chId, 'chapter'),
+    ...(inFolder ? [{ label: 'Remove from folder', icon: <ArrowRightFromLine className="h-3 w-3" />, onClick: () => removeFromFolder(chId, 'chapter') }] : []),
+    { label: 'Delete', icon: <Trash2 className="h-3 w-3" />, onClick: () => deleteChapter(chId), destructive: true },
+  ];
 
   const folderContextItems = (folderId: string) => [
     { label: 'Rename', icon: <Edit2 className="h-3 w-3" />, onClick: () => setRenaming({ id: folderId, type: 'folder' }) },
+    { label: 'New board inside', icon: <Layout className="h-3 w-3" />, onClick: () => addWhiteboard(folderId) },
+    { label: 'New chapter inside', icon: <FileText className="h-3 w-3" />, onClick: () => addChapter(folderId) },
     { label: 'Delete folder', icon: <Trash2 className="h-3 w-3" />, onClick: () => deleteFolder(folderId), destructive: true },
   ];
 
@@ -165,7 +214,6 @@ export function BookSidebar() {
     setContextMenu({ x: e.clientX, y: e.clientY, items });
   };
 
-  // ─── Renderers ───
   const renderWbItem = (wb: typeof book.whiteboards[0], inFolder: boolean) => (
     <button
       key={wb.id}
@@ -184,7 +232,7 @@ export function BookSidebar() {
       ) : (
         <span className="truncate">{wb.name}</span>
       )}
-      <span className="ml-auto text-xs text-muted-foreground">{wb.pins.length}</span>
+      <span className="ml-auto text-[10px] text-muted-foreground">{wb.pins.length}</span>
     </button>
   );
 
@@ -212,129 +260,61 @@ export function BookSidebar() {
   return (
     <>
       <aside className="w-64 min-w-[16rem] border-r border-border bg-sidebar flex flex-col h-screen">
-        {/* Book header */}
-        <div className="p-4 border-b border-border">
-          <div className="flex items-center gap-2">
-            <BookOpen className="h-5 w-5 text-primary" />
-            <h2 className="font-display text-lg font-semibold text-sidebar-foreground truncate">
-              {book.title}
-            </h2>
-          </div>
-          <p className="text-xs text-muted-foreground mt-1 font-body">
-            {book.folders.length} folders · {book.whiteboards.length} boards · {book.chapters.length} chapters
-          </p>
+        {/* Novel picker */}
+        <div className="px-2 pt-2">
+          <NovelPicker />
+        </div>
+
+        {/* Quick-create bar */}
+        <div className="flex gap-1 px-3 py-2 border-b border-border">
+          <Button variant="ghost" size="sm" className="flex-1 h-7 text-xs gap-1" onClick={() => addWhiteboard()}>
+            <Layout className="h-3 w-3" /> Board
+          </Button>
+          <Button variant="ghost" size="sm" className="flex-1 h-7 text-xs gap-1" onClick={() => addChapter()}>
+            <FileText className="h-3 w-3" /> Chapter
+          </Button>
+          <Button variant="ghost" size="sm" className="flex-1 h-7 text-xs gap-1" onClick={() => addFolder()}>
+            <FolderPlus className="h-3 w-3" /> Folder
+          </Button>
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 overflow-y-auto p-2 space-y-1">
-
-          {/* ─── Folders section ─── */}
-          <button
-            onClick={() => setFoldersOpen(!foldersOpen)}
-            className="flex items-center gap-2 w-full px-2 py-1.5 text-sm font-medium text-muted-foreground hover:text-foreground rounded-md transition-colors"
-          >
-            {foldersOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
-            <FolderOpen className="h-3.5 w-3.5" />
-            <span>Folders</span>
-          </button>
-          {foldersOpen && (
-            <div className="ml-2 space-y-0.5">
-              {book.folders.map(folder => {
-                const isOpen = openFolders.has(folder.id);
-                const folderWbs = book.whiteboards.filter(wb => folder.whiteboardIds.includes(wb.id));
-                const folderChs = book.chapters.filter(ch => folder.chapterIds.includes(ch.id));
-                return (
-                  <div key={folder.id}>
-                    <button
-                      onClick={() => toggleFolder(folder.id)}
-                      onContextMenu={e => handleContextMenu(e, folderContextItems(folder.id))}
-                      className="flex items-center gap-2 w-full px-2 py-1.5 text-sm rounded-md hover:bg-sidebar-accent/50 transition-colors text-sidebar-foreground"
-                    >
-                      {isOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
-                      <FolderOpen className="h-3.5 w-3.5 text-primary/70" />
-                      {renaming?.id === folder.id && renaming.type === 'folder' ? (
-                        <InlineRename value={folder.name} onSave={v => { renameFolder(folder.id, v); setRenaming(null); }} onCancel={() => setRenaming(null)} />
-                      ) : (
-                        <span className="truncate font-medium">{folder.name}</span>
-                      )}
-                      <span className="ml-auto text-xs text-muted-foreground">{folderWbs.length + folderChs.length}</span>
-                    </button>
-                    {isOpen && (
-                      <div className="ml-5 space-y-0.5 mt-0.5">
-                        {folderWbs.map(wb => renderWbItem(wb, true))}
-                        {folderChs.map(ch => renderChItem(ch, true))}
-                        <div className="flex gap-1 mt-1">
-                          <button
-                            onClick={() => addWhiteboard(folder.id)}
-                            className="flex items-center gap-1 px-2 py-1 text-[11px] text-muted-foreground hover:text-foreground rounded transition-colors"
-                          >
-                            <Plus className="h-3 w-3" /> Board
-                          </button>
-                          <button
-                            onClick={() => addChapter(folder.id)}
-                            className="flex items-center gap-1 px-2 py-1 text-[11px] text-muted-foreground hover:text-foreground rounded transition-colors"
-                          >
-                            <Plus className="h-3 w-3" /> Chapter
-                          </button>
-                        </div>
-                      </div>
-                    )}
+        <nav className="flex-1 overflow-y-auto p-2 space-y-0.5">
+          {/* Folders */}
+          {book.folders.map(folder => {
+            const isOpen = openFolders.has(folder.id);
+            const folderWbs = book.whiteboards.filter(wb => folder.whiteboardIds.includes(wb.id));
+            const folderChs = book.chapters.filter(ch => folder.chapterIds.includes(ch.id));
+            const count = folderWbs.length + folderChs.length;
+            return (
+              <div key={folder.id}>
+                <button
+                  onClick={() => toggleFolder(folder.id)}
+                  onContextMenu={e => handleContextMenu(e, folderContextItems(folder.id))}
+                  className="flex items-center gap-2 w-full px-2 py-1.5 text-sm rounded-md hover:bg-sidebar-accent/50 transition-colors text-sidebar-foreground"
+                >
+                  {isOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                  <FolderOpen className="h-3.5 w-3.5 text-primary/70" />
+                  {renaming?.id === folder.id && renaming.type === 'folder' ? (
+                    <InlineRename value={folder.name} onSave={v => { renameFolder(folder.id, v); setRenaming(null); }} onCancel={() => setRenaming(null)} />
+                  ) : (
+                    <span className="truncate font-medium">{folder.name}</span>
+                  )}
+                  <span className="ml-auto text-[10px] text-muted-foreground">{count}</span>
+                </button>
+                {isOpen && (
+                  <div className="ml-5 space-y-0.5 mt-0.5">
+                    {folderWbs.map(wb => renderWbItem(wb, true))}
+                    {folderChs.map(ch => renderChItem(ch, true))}
                   </div>
-                );
-              })}
-              <button
-                onClick={() => addFolder()}
-                className="flex items-center gap-2 w-full px-2 py-1.5 text-sm text-muted-foreground hover:text-foreground rounded-md transition-colors"
-              >
-                <FolderPlus className="h-3.5 w-3.5" />
-                <span>New folder</span>
-              </button>
-            </div>
-          )}
+                )}
+              </div>
+            );
+          })}
 
-          {/* ─── Ungrouped Whiteboards ─── */}
-          <button
-            onClick={() => setWbOpen(!wbOpen)}
-            className="flex items-center gap-2 w-full px-2 py-1.5 text-sm font-medium text-muted-foreground hover:text-foreground rounded-md transition-colors mt-2"
-          >
-            {wbOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
-            <Layout className="h-3.5 w-3.5" />
-            <span>Whiteboards</span>
-          </button>
-          {wbOpen && (
-            <div className="ml-4 space-y-0.5">
-              {ungroupedWbs.map(wb => renderWbItem(wb, false))}
-              <button
-                onClick={() => addWhiteboard()}
-                className="flex items-center gap-2 w-full px-2.5 py-1.5 text-sm text-muted-foreground hover:text-foreground rounded-md transition-colors"
-              >
-                <Plus className="h-3.5 w-3.5" />
-                <span>New board</span>
-              </button>
-            </div>
-          )}
-
-          {/* ─── Ungrouped Chapters ─── */}
-          <button
-            onClick={() => setChOpen(!chOpen)}
-            className="flex items-center gap-2 w-full px-2 py-1.5 text-sm font-medium text-muted-foreground hover:text-foreground rounded-md transition-colors mt-2"
-          >
-            {chOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
-            <FileText className="h-3.5 w-3.5" />
-            <span>Chapters</span>
-          </button>
-          {chOpen && (
-            <div className="ml-4 space-y-0.5">
-              {ungroupedChs.map(ch => renderChItem(ch, false))}
-              <button
-                onClick={() => addChapter()}
-                className="flex items-center gap-2 w-full px-2.5 py-1.5 text-sm text-muted-foreground hover:text-foreground rounded-md transition-colors"
-              >
-                <Plus className="h-3.5 w-3.5" />
-                <span>New chapter</span>
-              </button>
-            </div>
-          )}
+          {/* Ungrouped items */}
+          {ungroupedWbs.map(wb => renderWbItem(wb, false))}
+          {ungroupedChs.map(ch => renderChItem(ch, false))}
         </nav>
 
         {/* Footer */}
@@ -353,12 +333,7 @@ export function BookSidebar() {
       </aside>
 
       {contextMenu && (
-        <ContextMenu
-          x={contextMenu.x}
-          y={contextMenu.y}
-          items={contextMenu.items}
-          onClose={() => setContextMenu(null)}
-        />
+        <ContextMenu x={contextMenu.x} y={contextMenu.y} items={contextMenu.items} onClose={() => setContextMenu(null)} />
       )}
     </>
   );

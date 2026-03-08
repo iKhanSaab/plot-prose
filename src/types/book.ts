@@ -54,6 +54,11 @@ export interface Book {
   folders: Folder[];
 }
 
+export interface Library {
+  books: Book[];
+  activeBookId: string;
+}
+
 export type ViewMode = 'whiteboard' | 'chapter';
 
 export interface AppState {

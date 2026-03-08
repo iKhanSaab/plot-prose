@@ -1,7 +1,5 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { AppState, Book, Pin, WhiteboardSheet, Chapter, Draft, ViewMode, Tag, Folder } from '@/types/book';
-import { defaultBook } from '@/data/defaultBook';
-import { loadBook, usePersistBook } from '@/hooks/useLocalStorage';
 
 interface BookContextType extends AppState {
   setActiveView: (view: ViewMode) => void;
@@ -26,7 +24,6 @@ interface BookContextType extends AppState {
   duplicateChapter: (chapterId: string) => void;
   duplicateWhiteboard: (whiteboardId: string) => void;
   updatePinTags: (whiteboardId: string, pinId: string, tags: Tag[]) => void;
-  // Folder operations
   addFolder: (name?: string) => void;
   renameFolder: (folderId: string, name: string) => void;
   deleteFolder: (folderId: string) => void;
@@ -36,33 +33,39 @@ interface BookContextType extends AppState {
 
 const BookContext = createContext<BookContextType | null>(null);
 
-function getInitialBook(): Book {
-  try {
-    const saved = loadBook();
-    if (saved && saved.whiteboards && saved.chapters) {
-      // Migration: add folders if missing
-      if (!saved.folders) saved.folders = [];
-      return saved;
-    }
-  } catch {
-    // ignore
-  }
-  return defaultBook;
+interface BookProviderProps {
+  book: Book;
+  onBookChange: (book: Book) => void;
+  children: React.ReactNode;
 }
 
-export function BookProvider({ children }: { children: React.ReactNode }) {
-  const [initialBook] = useState(getInitialBook);
-  const [book, setBook] = useState<Book>(initialBook);
+export function BookProvider({ book: externalBook, onBookChange, children }: BookProviderProps) {
+  const [book, setBookInternal] = useState<Book>(externalBook);
   const [activeView, setActiveView] = useState<ViewMode>('whiteboard');
   const [activeWhiteboardId, setActiveWhiteboardId] = useState<string | null>(
-    initialBook.whiteboards[0]?.id || null
+    externalBook.whiteboards[0]?.id || null
   );
   const [activeChapterId, setActiveChapterId] = useState<string | null>(
-    initialBook.chapters[0]?.id || null
+    externalBook.chapters[0]?.id || null
   );
   const [isEditorFocusMode, setIsEditorFocusMode] = useState(false);
 
-  usePersistBook(book);
+  // Sync when switching novels
+  useEffect(() => {
+    setBookInternal(externalBook);
+    setActiveWhiteboardId(externalBook.whiteboards[0]?.id || null);
+    setActiveChapterId(externalBook.chapters[0]?.id || null);
+    setActiveView('whiteboard');
+    setIsEditorFocusMode(false);
+  }, [externalBook.id]);
+
+  const setBook = useCallback((updater: Book | ((prev: Book) => Book)) => {
+    setBookInternal(prev => {
+      const next = typeof updater === 'function' ? updater(prev) : updater;
+      onBookChange(next);
+      return next;
+    });
+  }, [onBookChange]);
 
   const setActiveWhiteboard = useCallback((id: string) => {
     setActiveWhiteboardId(id);
@@ -74,20 +77,16 @@ export function BookProvider({ children }: { children: React.ReactNode }) {
     setActiveView('chapter');
   }, []);
 
-  const toggleFocusMode = useCallback(() => {
-    setIsEditorFocusMode(prev => !prev);
-  }, []);
+  const toggleFocusMode = useCallback(() => setIsEditorFocusMode(prev => !prev), []);
 
   const updatePin = useCallback((whiteboardId: string, updatedPin: Pin) => {
     setBook(prev => ({
       ...prev,
       whiteboards: prev.whiteboards.map(wb =>
-        wb.id === whiteboardId
-          ? { ...wb, pins: wb.pins.map(p => p.id === updatedPin.id ? updatedPin : p) }
-          : wb
+        wb.id === whiteboardId ? { ...wb, pins: wb.pins.map(p => p.id === updatedPin.id ? updatedPin : p) } : wb
       ),
     }));
-  }, []);
+  }, [setBook]);
 
   const addPin = useCallback((whiteboardId: string, pin: Pin) => {
     setBook(prev => ({
@@ -96,55 +95,38 @@ export function BookProvider({ children }: { children: React.ReactNode }) {
         wb.id === whiteboardId ? { ...wb, pins: [...wb.pins, pin] } : wb
       ),
     }));
-  }, []);
+  }, [setBook]);
 
   const deletePin = useCallback((whiteboardId: string, pinId: string) => {
     setBook(prev => ({
       ...prev,
       whiteboards: prev.whiteboards.map(wb =>
         wb.id === whiteboardId
-          ? {
-              ...wb,
-              pins: wb.pins
-                .filter(p => p.id !== pinId)
-                .map(p => ({ ...p, connections: p.connections.filter(c => c !== pinId) })),
-            }
+          ? { ...wb, pins: wb.pins.filter(p => p.id !== pinId).map(p => ({ ...p, connections: p.connections.filter(c => c !== pinId) })) }
           : wb
       ),
     }));
-  }, []);
+  }, [setBook]);
 
   const updateDraftContent = useCallback((chapterId: string, draftId: string, content: string) => {
     setBook(prev => ({
       ...prev,
       chapters: prev.chapters.map(ch =>
         ch.id === chapterId
-          ? {
-              ...ch,
-              drafts: ch.drafts.map(d =>
-                d.id === draftId ? { ...d, content, updatedAt: new Date().toISOString() } : d
-              ),
-            }
+          ? { ...ch, drafts: ch.drafts.map(d => d.id === draftId ? { ...d, content, updatedAt: new Date().toISOString() } : d) }
           : ch
       ),
     }));
-  }, []);
+  }, [setBook]);
 
   const addChapter = useCallback((folderId?: string) => {
-    const newOrder = book.chapters.length + 1;
     const draftId = `draft-${Date.now()}`;
     const newChapter: Chapter = {
       id: `ch-${Date.now()}`,
-      title: `Chapter ${newOrder}: Untitled`,
-      order: newOrder,
+      title: `Untitled Chapter`,
+      order: book.chapters.length + 1,
       activeDraftId: draftId,
-      drafts: [{
-        id: draftId,
-        name: 'First Draft',
-        content: '',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      }],
+      drafts: [{ id: draftId, name: 'First Draft', content: '', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }],
     };
     setBook(prev => ({
       ...prev,
@@ -155,12 +137,12 @@ export function BookProvider({ children }: { children: React.ReactNode }) {
     }));
     setActiveChapterId(newChapter.id);
     setActiveView('chapter');
-  }, [book.chapters.length]);
+  }, [book.chapters.length, setBook]);
 
   const addWhiteboard = useCallback((folderId?: string) => {
     const newWb: WhiteboardSheet = {
       id: `wb-${Date.now()}`,
-      name: `Whiteboard ${book.whiteboards.length + 1}`,
+      name: `Untitled Board`,
       pins: [],
     };
     setBook(prev => ({
@@ -172,45 +154,33 @@ export function BookProvider({ children }: { children: React.ReactNode }) {
     }));
     setActiveWhiteboardId(newWb.id);
     setActiveView('whiteboard');
-  }, [book.whiteboards.length]);
+  }, [setBook]);
 
-  const updateBookTitle = useCallback((title: string) => {
-    setBook(prev => ({ ...prev, title }));
-  }, []);
+  const updateBookTitle = useCallback((title: string) => setBook(prev => ({ ...prev, title })), [setBook]);
 
   const updateChapterTitle = useCallback((chapterId: string, title: string) => {
-    setBook(prev => ({
-      ...prev,
-      chapters: prev.chapters.map(ch => ch.id === chapterId ? { ...ch, title } : ch),
-    }));
-  }, []);
+    setBook(prev => ({ ...prev, chapters: prev.chapters.map(ch => ch.id === chapterId ? { ...ch, title } : ch) }));
+  }, [setBook]);
 
   const addDraft = useCallback((chapterId: string) => {
     const newDraft: Draft = {
-      id: `draft-${Date.now()}`,
-      name: `Draft ${Date.now() % 1000}`,
-      content: '',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      id: `draft-${Date.now()}`, name: `Draft ${Date.now() % 1000}`, content: '',
+      createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
     };
     setBook(prev => ({
       ...prev,
       chapters: prev.chapters.map(ch =>
-        ch.id === chapterId
-          ? { ...ch, drafts: [...ch.drafts, newDraft], activeDraftId: newDraft.id }
-          : ch
+        ch.id === chapterId ? { ...ch, drafts: [...ch.drafts, newDraft], activeDraftId: newDraft.id } : ch
       ),
     }));
-  }, []);
+  }, [setBook]);
 
   const setActiveDraft = useCallback((chapterId: string, draftId: string) => {
     setBook(prev => ({
       ...prev,
-      chapters: prev.chapters.map(ch =>
-        ch.id === chapterId ? { ...ch, activeDraftId: draftId } : ch
-      ),
+      chapters: prev.chapters.map(ch => ch.id === chapterId ? { ...ch, activeDraftId: draftId } : ch),
     }));
-  }, []);
+  }, [setBook]);
 
   const connectPins = useCallback((whiteboardId: string, pinId1: string, pinId2: string) => {
     setBook(prev => ({
@@ -220,19 +190,15 @@ export function BookProvider({ children }: { children: React.ReactNode }) {
           ? {
               ...wb,
               pins: wb.pins.map(p => {
-                if (p.id === pinId1 && !p.connections.includes(pinId2)) {
-                  return { ...p, connections: [...p.connections, pinId2] };
-                }
-                if (p.id === pinId2 && !p.connections.includes(pinId1)) {
-                  return { ...p, connections: [...p.connections, pinId1] };
-                }
+                if (p.id === pinId1 && !p.connections.includes(pinId2)) return { ...p, connections: [...p.connections, pinId2] };
+                if (p.id === pinId2 && !p.connections.includes(pinId1)) return { ...p, connections: [...p.connections, pinId1] };
                 return p;
               }),
             }
           : wb
       ),
     }));
-  }, []);
+  }, [setBook]);
 
   const disconnectPins = useCallback((whiteboardId: string, pinId1: string, pinId2: string) => {
     setBook(prev => ({
@@ -250,7 +216,7 @@ export function BookProvider({ children }: { children: React.ReactNode }) {
           : wb
       ),
     }));
-  }, []);
+  }, [setBook]);
 
   const deleteChapter = useCallback((chapterId: string) => {
     setBook(prev => ({
@@ -259,7 +225,7 @@ export function BookProvider({ children }: { children: React.ReactNode }) {
       folders: prev.folders.map(f => ({ ...f, chapterIds: f.chapterIds.filter(id => id !== chapterId) })),
     }));
     setActiveChapterId(prev => prev === chapterId ? null : prev);
-  }, []);
+  }, [setBook]);
 
   const deleteWhiteboard = useCallback((whiteboardId: string) => {
     setBook(prev => ({
@@ -268,14 +234,11 @@ export function BookProvider({ children }: { children: React.ReactNode }) {
       folders: prev.folders.map(f => ({ ...f, whiteboardIds: f.whiteboardIds.filter(id => id !== whiteboardId) })),
     }));
     setActiveWhiteboardId(prev => prev === whiteboardId ? null : prev);
-  }, []);
+  }, [setBook]);
 
   const renameWhiteboard = useCallback((whiteboardId: string, name: string) => {
-    setBook(prev => ({
-      ...prev,
-      whiteboards: prev.whiteboards.map(wb => wb.id === whiteboardId ? { ...wb, name } : wb),
-    }));
-  }, []);
+    setBook(prev => ({ ...prev, whiteboards: prev.whiteboards.map(wb => wb.id === whiteboardId ? { ...wb, name } : wb) }));
+  }, [setBook]);
 
   const duplicateChapter = useCallback((chapterId: string) => {
     setBook(prev => {
@@ -284,83 +247,59 @@ export function BookProvider({ children }: { children: React.ReactNode }) {
       const newId = `ch-${Date.now()}`;
       const draftId = `draft-${Date.now()}`;
       const newCh: Chapter = {
-        ...ch,
-        id: newId,
-        title: `${ch.title} (Copy)`,
-        order: prev.chapters.length + 1,
-        activeDraftId: draftId,
-        drafts: ch.drafts.map((d, i) => ({ ...d, id: i === 0 ? draftId : `draft-${Date.now()}-${i}` })),
+        ...ch, id: newId, title: `${ch.title} (Copy)`, order: prev.chapters.length + 1,
+        activeDraftId: draftId, drafts: ch.drafts.map((d, i) => ({ ...d, id: i === 0 ? draftId : `draft-${Date.now()}-${i}` })),
       };
       return { ...prev, chapters: [...prev.chapters, newCh] };
     });
-  }, []);
+  }, [setBook]);
 
   const duplicateWhiteboard = useCallback((whiteboardId: string) => {
     setBook(prev => {
       const wb = prev.whiteboards.find(w => w.id === whiteboardId);
       if (!wb) return prev;
       const newWb: WhiteboardSheet = {
-        ...wb,
-        id: `wb-${Date.now()}`,
-        name: `${wb.name} (Copy)`,
+        ...wb, id: `wb-${Date.now()}`, name: `${wb.name} (Copy)`,
         pins: wb.pins.map(p => ({ ...p, id: `pin-${Date.now()}-${Math.random().toString(36).slice(2, 6)}` })),
       };
       const idMap = new Map(wb.pins.map((p, i) => [p.id, newWb.pins[i].id]));
-      newWb.pins = newWb.pins.map(p => ({
-        ...p,
-        connections: p.connections.map(c => idMap.get(c) || c),
-      }));
+      newWb.pins = newWb.pins.map(p => ({ ...p, connections: p.connections.map(c => idMap.get(c) || c) }));
       return { ...prev, whiteboards: [...prev.whiteboards, newWb] };
     });
-  }, []);
+  }, [setBook]);
 
   const updatePinTags = useCallback((whiteboardId: string, pinId: string, tags: Tag[]) => {
     setBook(prev => ({
       ...prev,
       whiteboards: prev.whiteboards.map(wb =>
-        wb.id === whiteboardId
-          ? { ...wb, pins: wb.pins.map(p => p.id === pinId ? { ...p, tags } : p) }
-          : wb
+        wb.id === whiteboardId ? { ...wb, pins: wb.pins.map(p => p.id === pinId ? { ...p, tags } : p) } : wb
       ),
     }));
-  }, []);
-
-  // ─── Folder operations ───
+  }, [setBook]);
 
   const addFolder = useCallback((name?: string) => {
     const newFolder: Folder = {
-      id: `folder-${Date.now()}`,
-      name: name || `Folder ${book.folders.length + 1}`,
-      whiteboardIds: [],
-      chapterIds: [],
-      order: book.folders.length + 1,
+      id: `folder-${Date.now()}`, name: name || `Folder ${book.folders.length + 1}`,
+      whiteboardIds: [], chapterIds: [], order: book.folders.length + 1,
     };
     setBook(prev => ({ ...prev, folders: [...prev.folders, newFolder] }));
-  }, [book.folders.length]);
+  }, [book.folders.length, setBook]);
 
   const renameFolder = useCallback((folderId: string, name: string) => {
-    setBook(prev => ({
-      ...prev,
-      folders: prev.folders.map(f => f.id === folderId ? { ...f, name } : f),
-    }));
-  }, []);
+    setBook(prev => ({ ...prev, folders: prev.folders.map(f => f.id === folderId ? { ...f, name } : f) }));
+  }, [setBook]);
 
   const deleteFolder = useCallback((folderId: string) => {
-    setBook(prev => ({
-      ...prev,
-      folders: prev.folders.filter(f => f.id !== folderId),
-    }));
-  }, []);
+    setBook(prev => ({ ...prev, folders: prev.folders.filter(f => f.id !== folderId) }));
+  }, [setBook]);
 
   const moveToFolder = useCallback((folderId: string, itemId: string, itemType: 'whiteboard' | 'chapter') => {
     setBook(prev => ({
       ...prev,
       folders: prev.folders.map(f => {
-        // Remove from any folder first
         const cleaned = itemType === 'whiteboard'
           ? { ...f, whiteboardIds: f.whiteboardIds.filter(id => id !== itemId) }
           : { ...f, chapterIds: f.chapterIds.filter(id => id !== itemId) };
-        // Add to target folder
         if (cleaned.id === folderId) {
           return itemType === 'whiteboard'
             ? { ...cleaned, whiteboardIds: [...cleaned.whiteboardIds, itemId] }
@@ -369,7 +308,7 @@ export function BookProvider({ children }: { children: React.ReactNode }) {
         return cleaned;
       }),
     }));
-  }, []);
+  }, [setBook]);
 
   const removeFromFolder = useCallback((itemId: string, itemType: 'whiteboard' | 'chapter') => {
     setBook(prev => ({
@@ -380,7 +319,7 @@ export function BookProvider({ children }: { children: React.ReactNode }) {
           : { ...f, chapterIds: f.chapterIds.filter(id => id !== itemId) }
       ),
     }));
-  }, []);
+  }, [setBook]);
 
   return (
     <BookContext.Provider value={{

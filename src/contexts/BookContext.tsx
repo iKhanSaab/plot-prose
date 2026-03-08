@@ -351,7 +351,7 @@ export function BookProvider({ book: externalBook, onBookChange, children }: Boo
       setActiveView, setActiveWhiteboard, setActiveChapter, toggleFocusMode,
       updatePin, addPin, deletePin, updateDraftContent,
       addChapter, addWhiteboard, updateBookTitle, updateChapterTitle,
-      addDraft, setActiveDraft, connectPins, disconnectPins,
+      addDraft, deleteDraft, renameDraft, setActiveDraft, connectPins, disconnectPins,
       deleteChapter, deleteWhiteboard, renameWhiteboard,
       duplicateChapter, duplicateWhiteboard, updatePinTags,
       addFolder, renameFolder, deleteFolder, moveToFolder, removeFromFolder,

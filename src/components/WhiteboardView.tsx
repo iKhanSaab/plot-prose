@@ -121,6 +121,52 @@ function PinCard({
         </div>
       )}
 
+      {/* Image input */}
+      {showImageInput && (
+        <div className="px-3 pb-1 no-drag">
+          <div className="flex items-center gap-1">
+            <input
+              className="flex-1 text-[10px] bg-transparent border border-border rounded px-1.5 py-1 outline-none placeholder:text-muted-foreground/50"
+              placeholder="Paste image URL..."
+              value={imageUrl}
+              onChange={e => setImageUrl(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter') {
+                  updatePin(whiteboardId, { ...pin, imageUrl: imageUrl.trim() || undefined });
+                  setShowImageInput(false);
+                }
+              }}
+            />
+            {pin.imageUrl && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setImageUrl('');
+                  updatePin(whiteboardId, { ...pin, imageUrl: undefined });
+                  setShowImageInput(false);
+                }}
+                className="p-0.5 rounded hover:bg-destructive/10 transition-colors"
+                title="Remove image"
+              >
+                <Trash2 className="h-3 w-3 text-muted-foreground hover:text-destructive" />
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Pin image */}
+      {pin.imageUrl && (
+        <div className="px-3 pb-1">
+          <img
+            src={pin.imageUrl}
+            alt={pin.title}
+            className="w-full h-24 object-cover rounded border border-border"
+            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+          />
+        </div>
+      )}
+
       {/* Content */}
       <div className="px-3 pb-2">
         {isEditing ? (

@@ -13,6 +13,10 @@ export default {
       },
     },
     extend: {
+      fontFamily: {
+        display: ["var(--font-display)", "serif"],
+        body: ["var(--font-body)", "sans-serif"],
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
@@ -57,6 +61,29 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+        canvas: {
+          bg: "hsl(var(--canvas-bg))",
+          grid: "hsl(var(--canvas-grid))",
+        },
+        pin: {
+          bg: "hsl(var(--pin-bg))",
+          border: "hsl(var(--pin-border))",
+        },
+        connection: "hsl(var(--connection-line))",
+        tag: {
+          rose: "hsl(var(--tag-rose))",
+          "rose-text": "hsl(var(--tag-rose-text))",
+          sage: "hsl(var(--tag-sage))",
+          "sage-text": "hsl(var(--tag-sage-text))",
+          amber: "hsl(var(--tag-amber))",
+          "amber-text": "hsl(var(--tag-amber-text))",
+          lavender: "hsl(var(--tag-lavender))",
+          "lavender-text": "hsl(var(--tag-lavender-text))",
+        },
+        editor: {
+          bg: "hsl(var(--editor-bg))",
+          highlight: "hsl(var(--editor-line-highlight))",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",
@@ -65,20 +92,12 @@ export default {
       },
       keyframes: {
         "accordion-down": {
-          from: {
-            height: "0",
-          },
-          to: {
-            height: "var(--radix-accordion-content-height)",
-          },
+          from: { height: "0" },
+          to: { height: "var(--radix-accordion-content-height)" },
         },
         "accordion-up": {
-          from: {
-            height: "var(--radix-accordion-content-height)",
-          },
-          to: {
-            height: "0",
-          },
+          from: { height: "var(--radix-accordion-content-height)" },
+          to: { height: "0" },
         },
       },
       animation: {

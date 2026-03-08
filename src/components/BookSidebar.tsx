@@ -3,7 +3,7 @@ import { useLibrary } from '@/contexts/LibraryContext';
 import {
   Layout, FileText, Plus, ChevronDown, ChevronRight, PenTool,
   Trash2, Copy, Edit2, FolderOpen, FolderPlus, ArrowRightFromLine,
-  BookOpen, Check, MoreHorizontal,
+  BookOpen, Check, MoreHorizontal, Search, Keyboard, Download,
 } from 'lucide-react';
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { cn } from '@/lib/utils';
@@ -12,6 +12,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Button } from '@/components/ui/button';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useLongPressDrag, DragState } from '@/hooks/useLongPressDrag';
+import { ConfirmDialog } from './ConfirmDialog';
+import { toast } from '@/hooks/use-toast';
 
 /* ─── Types ─── */
 type ContextMenuItem = {

@@ -455,15 +455,24 @@ export function SidebarContent({ onItemSelect, onOpenSearch, onOpenShortcuts }: 
 
       {/* Drag ghost */}
       {dragging && <DragGhost drag={dragging} />}
+
+      {/* Confirm dialog */}
+      <ConfirmDialog
+        open={!!confirmDialog}
+        onOpenChange={open => { if (!open) setConfirmDialog(null); }}
+        title={confirmDialog?.title || ''}
+        description={confirmDialog?.description || ''}
+        onConfirm={() => { confirmDialog?.onConfirm(); setConfirmDialog(null); }}
+      />
     </>
   );
 }
 
 /* ─── Main Export — wraps content in aside for desktop ─── */
-export function BookSidebar() {
+export function BookSidebar({ onOpenSearch, onOpenShortcuts }: { onOpenSearch?: () => void; onOpenShortcuts?: () => void }) {
   return (
     <aside className="w-64 min-w-[16rem] border-r border-border bg-sidebar flex flex-col h-screen">
-      <SidebarContent />
+      <SidebarContent onOpenSearch={onOpenSearch} onOpenShortcuts={onOpenShortcuts} />
     </aside>
   );
 }

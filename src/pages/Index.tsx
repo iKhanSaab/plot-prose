@@ -1,12 +1,18 @@
 import { LibraryProvider, useLibrary } from '@/contexts/LibraryContext';
 import { BookProvider, useBook } from '@/contexts/BookContext';
-import { BookSidebar } from '@/components/BookSidebar';
+import { BookSidebar, SidebarContent } from '@/components/BookSidebar';
 import { WhiteboardView } from '@/components/WhiteboardView';
 import { ChapterEditor } from '@/components/ChapterEditor';
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useState } from 'react';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { Menu } from 'lucide-react';
+import { Sheet, SheetContent } from '@/components/ui/sheet';
+import { Button } from '@/components/ui/button';
 
 function WorkspaceContent() {
   const { activeView, isEditorFocusMode, toggleFocusMode, addChapter, addWhiteboard } = useBook();
+  const isMobile = useIsMobile();
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if (e.key === 'Escape' && isEditorFocusMode) { toggleFocusMode(); return; }
@@ -20,6 +26,34 @@ function WorkspaceContent() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleKeyDown]);
+
+  if (isMobile) {
+    return (
+      <div className="flex flex-col h-screen w-full overflow-hidden">
+        {/* Mobile header */}
+        {!isEditorFocusMode && (
+          <header className="flex items-center h-12 px-2 border-b border-border bg-sidebar shrink-0">
+            <Button variant="ghost" size="icon" className="h-10 w-10" onClick={() => setMobileOpen(true)}>
+              <Menu className="h-5 w-5" />
+            </Button>
+            <span className="ml-2 text-sm font-semibold text-foreground truncate">Plot-On</span>
+          </header>
+        )}
+
+        {/* Mobile sidebar sheet */}
+        <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+          <SheetContent side="left" className="w-[85vw] max-w-[320px] p-0 bg-sidebar">
+            <SidebarContent onItemSelect={() => setMobileOpen(false)} />
+          </SheetContent>
+        </Sheet>
+
+        {/* Main content */}
+        <div className="flex-1 overflow-hidden">
+          {activeView === 'whiteboard' ? <WhiteboardView /> : <ChapterEditor />}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen w-full overflow-hidden">

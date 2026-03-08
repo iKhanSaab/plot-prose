@@ -3,7 +3,7 @@ import { useLibrary } from '@/contexts/LibraryContext';
 import {
   Layout, FileText, Plus, ChevronDown, ChevronRight, PenTool,
   Trash2, Copy, Edit2, FolderOpen, FolderPlus, ArrowRightFromLine,
-  BookOpen, Check, MoreHorizontal,
+  BookOpen, Check, MoreHorizontal, Search, Keyboard, Download,
 } from 'lucide-react';
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { cn } from '@/lib/utils';
@@ -12,6 +12,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Button } from '@/components/ui/button';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useLongPressDrag, DragState } from '@/hooks/useLongPressDrag';
+import { ConfirmDialog } from './ConfirmDialog';
+import { toast } from '@/hooks/use-toast';
 
 /* ─── Types ─── */
 type ContextMenuItem = {
@@ -184,7 +186,7 @@ function NovelPicker() {
 }
 
 /* ─── Sidebar Content (shared between desktop & mobile) ─── */
-export function SidebarContent({ onItemSelect }: { onItemSelect?: () => void }) {
+export function SidebarContent({ onItemSelect, onOpenSearch, onOpenShortcuts }: { onItemSelect?: () => void; onOpenSearch?: () => void; onOpenShortcuts?: () => void }) {
   const {
     book, activeView, activeWhiteboardId, activeChapterId,
     setActiveWhiteboard, setActiveChapter, addWhiteboard, addChapter,
@@ -198,6 +200,7 @@ export function SidebarContent({ onItemSelect }: { onItemSelect?: () => void }) 
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; items: ContextMenuItem[] } | null>(null);
   const [mobileMenu, setMobileMenu] = useState<ContextMenuItem[] | null>(null);
   const [renaming, setRenaming] = useState<{ id: string; type: 'wb' | 'ch' | 'folder' } | null>(null);
+  const [confirmDialog, setConfirmDialog] = useState<{ title: string; description: string; onConfirm: () => void } | null>(null);
 
   const handleDrop = useCallback((itemId: string, itemType: 'whiteboard' | 'chapter', targetFolderId: string | null) => {
     if (targetFolderId) {
@@ -248,28 +251,41 @@ export function SidebarContent({ onItemSelect }: { onItemSelect?: () => void }) 
       ? [{ label: 'Move to folder', icon: <ArrowRightFromLine className="h-3 w-3" />, onClick: () => {}, children: book.folders.map(f => ({ label: f.name, onClick: () => moveToFolder(f.id, itemId, itemType) })) }]
       : [];
 
-  const wbContextItems = (wbId: string, inFolder: boolean): ContextMenuItem[] => [
-    { label: 'Rename', icon: <Edit2 className="h-3.5 w-3.5" />, onClick: () => setRenaming({ id: wbId, type: 'wb' }) },
-    { label: 'Duplicate', icon: <Copy className="h-3.5 w-3.5" />, onClick: () => duplicateWhiteboard(wbId) },
-    ...moveToFolderSubmenu(wbId, 'whiteboard'),
-    ...(inFolder ? [{ label: 'Remove from folder', icon: <ArrowRightFromLine className="h-3.5 w-3.5" />, onClick: () => removeFromFolder(wbId, 'whiteboard') }] : []),
-    { label: 'Delete', icon: <Trash2 className="h-3.5 w-3.5" />, onClick: () => deleteWhiteboard(wbId), destructive: true },
-  ];
+  const confirmDelete = (title: string, description: string, onConfirm: () => void) => {
+    setConfirmDialog({ title, description, onConfirm });
+  };
 
-  const chContextItems = (chId: string, inFolder: boolean): ContextMenuItem[] => [
-    { label: 'Rename', icon: <Edit2 className="h-3.5 w-3.5" />, onClick: () => setRenaming({ id: chId, type: 'ch' }) },
-    { label: 'Duplicate', icon: <Copy className="h-3.5 w-3.5" />, onClick: () => duplicateChapter(chId) },
-    ...moveToFolderSubmenu(chId, 'chapter'),
-    ...(inFolder ? [{ label: 'Remove from folder', icon: <ArrowRightFromLine className="h-3.5 w-3.5" />, onClick: () => removeFromFolder(chId, 'chapter') }] : []),
-    { label: 'Delete', icon: <Trash2 className="h-3.5 w-3.5" />, onClick: () => deleteChapter(chId), destructive: true },
-  ];
+  const wbContextItems = (wbId: string, inFolder: boolean): ContextMenuItem[] => {
+    const wb = book.whiteboards.find(w => w.id === wbId);
+    return [
+      { label: 'Rename', icon: <Edit2 className="h-3.5 w-3.5" />, onClick: () => setRenaming({ id: wbId, type: 'wb' }) },
+      { label: 'Duplicate', icon: <Copy className="h-3.5 w-3.5" />, onClick: () => { duplicateWhiteboard(wbId); toast({ title: 'Board duplicated' }); } },
+      ...moveToFolderSubmenu(wbId, 'whiteboard'),
+      ...(inFolder ? [{ label: 'Remove from folder', icon: <ArrowRightFromLine className="h-3.5 w-3.5" />, onClick: () => removeFromFolder(wbId, 'whiteboard') }] : []),
+      { label: 'Delete', icon: <Trash2 className="h-3.5 w-3.5" />, onClick: () => confirmDelete('Delete board?', `"${wb?.name}" and all its pins will be permanently deleted.`, () => { deleteWhiteboard(wbId); toast({ title: 'Board deleted' }); }), destructive: true },
+    ];
+  };
 
-  const folderContextItems = (folderId: string): ContextMenuItem[] => [
-    { label: 'Rename', icon: <Edit2 className="h-3.5 w-3.5" />, onClick: () => setRenaming({ id: folderId, type: 'folder' }) },
-    { label: 'New board inside', icon: <Layout className="h-3.5 w-3.5" />, onClick: () => addWhiteboard(folderId) },
-    { label: 'New chapter inside', icon: <FileText className="h-3.5 w-3.5" />, onClick: () => addChapter(folderId) },
-    { label: 'Delete folder', icon: <Trash2 className="h-3.5 w-3.5" />, onClick: () => deleteFolder(folderId), destructive: true },
-  ];
+  const chContextItems = (chId: string, inFolder: boolean): ContextMenuItem[] => {
+    const ch = book.chapters.find(c => c.id === chId);
+    return [
+      { label: 'Rename', icon: <Edit2 className="h-3.5 w-3.5" />, onClick: () => setRenaming({ id: chId, type: 'ch' }) },
+      { label: 'Duplicate', icon: <Copy className="h-3.5 w-3.5" />, onClick: () => { duplicateChapter(chId); toast({ title: 'Chapter duplicated' }); } },
+      ...moveToFolderSubmenu(chId, 'chapter'),
+      ...(inFolder ? [{ label: 'Remove from folder', icon: <ArrowRightFromLine className="h-3.5 w-3.5" />, onClick: () => removeFromFolder(chId, 'chapter') }] : []),
+      { label: 'Delete', icon: <Trash2 className="h-3.5 w-3.5" />, onClick: () => confirmDelete('Delete chapter?', `"${ch?.title}" and all its drafts will be permanently deleted.`, () => { deleteChapter(chId); toast({ title: 'Chapter deleted' }); }), destructive: true },
+    ];
+  };
+
+  const folderContextItems = (folderId: string): ContextMenuItem[] => {
+    const f = book.folders.find(fo => fo.id === folderId);
+    return [
+      { label: 'Rename', icon: <Edit2 className="h-3.5 w-3.5" />, onClick: () => setRenaming({ id: folderId, type: 'folder' }) },
+      { label: 'New board inside', icon: <Layout className="h-3.5 w-3.5" />, onClick: () => { addWhiteboard(folderId); toast({ title: 'Board created' }); } },
+      { label: 'New chapter inside', icon: <FileText className="h-3.5 w-3.5" />, onClick: () => { addChapter(folderId); toast({ title: 'Chapter created' }); } },
+      { label: 'Delete folder', icon: <Trash2 className="h-3.5 w-3.5" />, onClick: () => confirmDelete('Delete folder?', `"${f?.name}" will be deleted. Items inside will be ungrouped, not deleted.`, () => { deleteFolder(folderId); toast({ title: 'Folder deleted' }); }), destructive: true },
+    ];
+  };
 
   const renderWbItem = (wb: typeof book.whiteboards[0], inFolder: boolean) => {
     const isActive = activeView === 'whiteboard' && activeWhiteboardId === wb.id;
@@ -342,14 +358,25 @@ export function SidebarContent({ onItemSelect }: { onItemSelect?: () => void }) 
 
         {/* Quick-create bar */}
         <div className="flex gap-1 px-3 py-2 border-b border-border">
-          <Button variant="ghost" size="sm" className={cn('flex-1 text-xs gap-1', isMobile ? 'h-9' : 'h-7')} onClick={() => addWhiteboard()}>
+          <Button variant="ghost" size="sm" className={cn('flex-1 text-xs gap-1', isMobile ? 'h-9' : 'h-7')} onClick={() => { addWhiteboard(); toast({ title: 'Board created' }); }}>
             <Layout className="h-3.5 w-3.5" /> Board
           </Button>
-          <Button variant="ghost" size="sm" className={cn('flex-1 text-xs gap-1', isMobile ? 'h-9' : 'h-7')} onClick={() => addChapter()}>
+          <Button variant="ghost" size="sm" className={cn('flex-1 text-xs gap-1', isMobile ? 'h-9' : 'h-7')} onClick={() => { addChapter(); toast({ title: 'Chapter created' }); }}>
             <FileText className="h-3.5 w-3.5" /> Chapter
           </Button>
-          <Button variant="ghost" size="sm" className={cn('flex-1 text-xs gap-1', isMobile ? 'h-9' : 'h-7')} onClick={() => addFolder()}>
+          <Button variant="ghost" size="sm" className={cn('flex-1 text-xs gap-1', isMobile ? 'h-9' : 'h-7')} onClick={() => { addFolder(); toast({ title: 'Folder created' }); }}>
             <FolderPlus className="h-3.5 w-3.5" /> Folder
+          </Button>
+        </div>
+
+        {/* Search & shortcuts */}
+        <div className="flex gap-1 px-3 py-1.5 border-b border-border">
+          <Button variant="ghost" size="sm" className="flex-1 text-xs gap-1 h-7 justify-start text-muted-foreground" onClick={onOpenSearch}>
+            <Search className="h-3.5 w-3.5" /> Search
+            <kbd className="ml-auto text-[10px] bg-muted px-1 rounded">⌘K</kbd>
+          </Button>
+          <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground" onClick={onOpenShortcuts} title="Keyboard shortcuts">
+            <Keyboard className="h-3.5 w-3.5" />
           </Button>
         </div>
 
@@ -428,15 +455,24 @@ export function SidebarContent({ onItemSelect }: { onItemSelect?: () => void }) 
 
       {/* Drag ghost */}
       {dragging && <DragGhost drag={dragging} />}
+
+      {/* Confirm dialog */}
+      <ConfirmDialog
+        open={!!confirmDialog}
+        onOpenChange={open => { if (!open) setConfirmDialog(null); }}
+        title={confirmDialog?.title || ''}
+        description={confirmDialog?.description || ''}
+        onConfirm={() => { confirmDialog?.onConfirm(); setConfirmDialog(null); }}
+      />
     </>
   );
 }
 
 /* ─── Main Export — wraps content in aside for desktop ─── */
-export function BookSidebar() {
+export function BookSidebar({ onOpenSearch, onOpenShortcuts }: { onOpenSearch?: () => void; onOpenShortcuts?: () => void }) {
   return (
     <aside className="w-64 min-w-[16rem] border-r border-border bg-sidebar flex flex-col h-screen">
-      <SidebarContent />
+      <SidebarContent onOpenSearch={onOpenSearch} onOpenShortcuts={onOpenShortcuts} />
     </aside>
   );
 }

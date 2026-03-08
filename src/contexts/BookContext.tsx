@@ -15,6 +15,8 @@ interface BookContextType extends AppState {
   updateBookTitle: (title: string) => void;
   updateChapterTitle: (chapterId: string, title: string) => void;
   addDraft: (chapterId: string) => void;
+  deleteDraft: (chapterId: string, draftId: string) => void;
+  renameDraft: (chapterId: string, draftId: string, name: string) => void;
   setActiveDraft: (chapterId: string, draftId: string) => void;
   connectPins: (whiteboardId: string, pinId1: string, pinId2: string) => void;
   disconnectPins: (whiteboardId: string, pinId1: string, pinId2: string) => void;
@@ -175,6 +177,28 @@ export function BookProvider({ book: externalBook, onBookChange, children }: Boo
     }));
   }, [setBook]);
 
+  const deleteDraft = useCallback((chapterId: string, draftId: string) => {
+    setBook(prev => ({
+      ...prev,
+      chapters: prev.chapters.map(ch => {
+        if (ch.id !== chapterId) return ch;
+        if (ch.drafts.length <= 1) return ch; // can't delete last draft
+        const remaining = ch.drafts.filter(d => d.id !== draftId);
+        const newActive = ch.activeDraftId === draftId ? remaining[0].id : ch.activeDraftId;
+        return { ...ch, drafts: remaining, activeDraftId: newActive };
+      }),
+    }));
+  }, [setBook]);
+
+  const renameDraft = useCallback((chapterId: string, draftId: string, name: string) => {
+    setBook(prev => ({
+      ...prev,
+      chapters: prev.chapters.map(ch =>
+        ch.id === chapterId ? { ...ch, drafts: ch.drafts.map(d => d.id === draftId ? { ...d, name } : d) } : ch
+      ),
+    }));
+  }, [setBook]);
+
   const setActiveDraft = useCallback((chapterId: string, draftId: string) => {
     setBook(prev => ({
       ...prev,
@@ -327,7 +351,7 @@ export function BookProvider({ book: externalBook, onBookChange, children }: Boo
       setActiveView, setActiveWhiteboard, setActiveChapter, toggleFocusMode,
       updatePin, addPin, deletePin, updateDraftContent,
       addChapter, addWhiteboard, updateBookTitle, updateChapterTitle,
-      addDraft, setActiveDraft, connectPins, disconnectPins,
+      addDraft, deleteDraft, renameDraft, setActiveDraft, connectPins, disconnectPins,
       deleteChapter, deleteWhiteboard, renameWhiteboard,
       duplicateChapter, duplicateWhiteboard, updatePinTags,
       addFolder, renameFolder, deleteFolder, moveToFolder, removeFromFolder,

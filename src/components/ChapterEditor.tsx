@@ -1,12 +1,13 @@
 import { useBook } from '@/contexts/BookContext';
 import { useState, useRef, useEffect } from 'react';
-import { Maximize2, Minimize2, Plus, FileText, ChevronDown } from 'lucide-react';
+import { Maximize2, Minimize2, Plus, FileText, ChevronDown, Trash2, Edit2, Check, Save } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { exportChapterAsMarkdown } from '@/lib/exportImport';
 
 export function ChapterEditor() {
   const {
     book, activeChapterId, isEditorFocusMode, toggleFocusMode,
-    updateDraftContent, addDraft, setActiveDraft, updateChapterTitle,
+    updateDraftContent, addDraft, deleteDraft, renameDraft, setActiveDraft, updateChapterTitle,
   } = useBook();
 
   const chapter = book.chapters.find(ch => ch.id === activeChapterId);
@@ -14,7 +15,11 @@ export function ChapterEditor() {
   const [showDrafts, setShowDrafts] = useState(false);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [titleValue, setTitleValue] = useState(chapter?.title || '');
+  const [renamingDraftId, setRenamingDraftId] = useState<string | null>(null);
+  const [draftNameValue, setDraftNameValue] = useState('');
+  const [saveStatus, setSaveStatus] = useState<'saved' | 'saving'>('saved');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     setTitleValue(chapter?.title || '');
@@ -38,12 +43,28 @@ export function ChapterEditor() {
   }
 
   const wordCount = activeDraft.content.trim() ? activeDraft.content.trim().split(/\s+/).length : 0;
+  const charCount = activeDraft.content.length;
+  const readingTime = Math.max(1, Math.ceil(wordCount / 250));
+
+  const handleContentChange = (content: string) => {
+    setSaveStatus('saving');
+    updateDraftContent(chapter.id, activeDraft.id, content);
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => setSaveStatus('saved'), 600);
+  };
 
   const handleTitleSave = () => {
     if (titleValue.trim()) {
       updateChapterTitle(chapter.id, titleValue.trim());
     }
     setIsEditingTitle(false);
+  };
+
+  const handleDraftRename = (draftId: string) => {
+    if (draftNameValue.trim()) {
+      renameDraft(chapter.id, draftId, draftNameValue.trim());
+    }
+    setRenamingDraftId(null);
   };
 
   return (
@@ -74,8 +95,22 @@ export function ChapterEditor() {
               {chapter.title}
             </h2>
           )}
-          <div className="flex items-center gap-3 mt-0.5">
+          <div className="flex items-center gap-3 mt-0.5 flex-wrap">
             <p className="text-xs text-muted-foreground">{wordCount} words</p>
+            <span className="text-xs text-muted-foreground">·</span>
+            <p className="text-xs text-muted-foreground">{charCount.toLocaleString()} chars</p>
+            <span className="text-xs text-muted-foreground">·</span>
+            <p className="text-xs text-muted-foreground">~{readingTime} min read</p>
+            <span className="text-xs text-muted-foreground">·</span>
+
+            {/* Save status */}
+            <span className={cn(
+              'flex items-center gap-1 text-xs transition-colors',
+              saveStatus === 'saved' ? 'text-muted-foreground' : 'text-primary'
+            )}>
+              {saveStatus === 'saved' ? <Check className="h-3 w-3" /> : <Save className="h-3 w-3 animate-pulse" />}
+              {saveStatus === 'saved' ? 'Saved' : 'Saving...'}
+            </span>
             <span className="text-xs text-muted-foreground">·</span>
 
             {/* Draft selector */}
@@ -88,18 +123,45 @@ export function ChapterEditor() {
                 <ChevronDown className="h-3 w-3" />
               </button>
               {showDrafts && (
-                <div className="absolute top-full left-0 mt-1 bg-popover border border-border rounded-md shadow-lg py-1 z-10 min-w-[140px] animate-fade-in">
+                <div className="absolute top-full left-0 mt-1 bg-popover border border-border rounded-md shadow-lg py-1 z-10 min-w-[180px] animate-fade-in">
                   {chapter.drafts.map(d => (
-                    <button
-                      key={d.id}
-                      onClick={() => { setActiveDraft(chapter.id, d.id); setShowDrafts(false); }}
-                      className={cn(
-                        'w-full text-left px-3 py-1.5 text-xs hover:bg-muted transition-colors',
-                        d.id === activeDraft.id && 'text-primary font-medium'
+                    <div key={d.id} className="flex items-center group">
+                      {renamingDraftId === d.id ? (
+                        <input
+                          className="flex-1 px-3 py-1.5 text-xs bg-transparent border-b border-primary outline-none"
+                          value={draftNameValue}
+                          onChange={e => setDraftNameValue(e.target.value)}
+                          onBlur={() => handleDraftRename(d.id)}
+                          onKeyDown={e => { if (e.key === 'Enter') handleDraftRename(d.id); if (e.key === 'Escape') setRenamingDraftId(null); }}
+                          autoFocus
+                          onClick={e => e.stopPropagation()}
+                        />
+                      ) : (
+                        <button
+                          onClick={() => { setActiveDraft(chapter.id, d.id); setShowDrafts(false); }}
+                          className={cn(
+                            'flex-1 text-left px-3 py-1.5 text-xs hover:bg-muted transition-colors',
+                            d.id === activeDraft.id && 'text-primary font-medium'
+                          )}
+                        >
+                          {d.name}
+                        </button>
                       )}
-                    >
-                      {d.name}
-                    </button>
+                      <button
+                        onClick={e => { e.stopPropagation(); setDraftNameValue(d.name); setRenamingDraftId(d.id); }}
+                        className="opacity-0 group-hover:opacity-100 p-1 hover:bg-muted rounded transition-all"
+                      >
+                        <Edit2 className="h-3 w-3 text-muted-foreground" />
+                      </button>
+                      {chapter.drafts.length > 1 && (
+                        <button
+                          onClick={e => { e.stopPropagation(); deleteDraft(chapter.id, d.id); }}
+                          className="opacity-0 group-hover:opacity-100 p-1 hover:bg-destructive/10 rounded transition-all"
+                        >
+                          <Trash2 className="h-3 w-3 text-destructive" />
+                        </button>
+                      )}
+                    </div>
                   ))}
                   <div className="border-t border-border mt-1 pt-1">
                     <button
@@ -138,7 +200,7 @@ export function ChapterEditor() {
             ref={textareaRef}
             className="chapter-editor w-full min-h-[60vh] bg-transparent resize-none text-foreground placeholder:text-muted-foreground/40"
             value={activeDraft.content}
-            onChange={e => updateDraftContent(chapter.id, activeDraft.id, e.target.value)}
+            onChange={e => handleContentChange(e.target.value)}
             placeholder="Begin writing your chapter..."
             spellCheck
           />

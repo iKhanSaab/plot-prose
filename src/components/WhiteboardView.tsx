@@ -88,6 +88,13 @@ function PinCard({
             <Tag className="h-3 w-3 text-muted-foreground" />
           </button>
           <button
+            onClick={(e) => { e.stopPropagation(); setShowImageInput(!showImageInput); }}
+            className="p-1 rounded hover:bg-muted transition-colors"
+            title="Attach image"
+          >
+            <ImagePlus className="h-3 w-3 text-muted-foreground" />
+          </button>
+          <button
             onClick={(e) => { e.stopPropagation(); onStartConnect(pin.id); }}
             className="p-1 rounded hover:bg-muted transition-colors"
             title="Connect to another pin"

@@ -177,6 +177,28 @@ export function BookProvider({ book: externalBook, onBookChange, children }: Boo
     }));
   }, [setBook]);
 
+  const deleteDraft = useCallback((chapterId: string, draftId: string) => {
+    setBook(prev => ({
+      ...prev,
+      chapters: prev.chapters.map(ch => {
+        if (ch.id !== chapterId) return ch;
+        if (ch.drafts.length <= 1) return ch; // can't delete last draft
+        const remaining = ch.drafts.filter(d => d.id !== draftId);
+        const newActive = ch.activeDraftId === draftId ? remaining[0].id : ch.activeDraftId;
+        return { ...ch, drafts: remaining, activeDraftId: newActive };
+      }),
+    }));
+  }, [setBook]);
+
+  const renameDraft = useCallback((chapterId: string, draftId: string, name: string) => {
+    setBook(prev => ({
+      ...prev,
+      chapters: prev.chapters.map(ch =>
+        ch.id === chapterId ? { ...ch, drafts: ch.drafts.map(d => d.id === draftId ? { ...d, name } : d) } : ch
+      ),
+    }));
+  }, [setBook]);
+
   const setActiveDraft = useCallback((chapterId: string, draftId: string) => {
     setBook(prev => ({
       ...prev,

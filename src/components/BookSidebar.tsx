@@ -358,14 +358,25 @@ export function SidebarContent({ onItemSelect, onOpenSearch, onOpenShortcuts }: 
 
         {/* Quick-create bar */}
         <div className="flex gap-1 px-3 py-2 border-b border-border">
-          <Button variant="ghost" size="sm" className={cn('flex-1 text-xs gap-1', isMobile ? 'h-9' : 'h-7')} onClick={() => addWhiteboard()}>
+          <Button variant="ghost" size="sm" className={cn('flex-1 text-xs gap-1', isMobile ? 'h-9' : 'h-7')} onClick={() => { addWhiteboard(); toast({ title: 'Board created' }); }}>
             <Layout className="h-3.5 w-3.5" /> Board
           </Button>
-          <Button variant="ghost" size="sm" className={cn('flex-1 text-xs gap-1', isMobile ? 'h-9' : 'h-7')} onClick={() => addChapter()}>
+          <Button variant="ghost" size="sm" className={cn('flex-1 text-xs gap-1', isMobile ? 'h-9' : 'h-7')} onClick={() => { addChapter(); toast({ title: 'Chapter created' }); }}>
             <FileText className="h-3.5 w-3.5" /> Chapter
           </Button>
-          <Button variant="ghost" size="sm" className={cn('flex-1 text-xs gap-1', isMobile ? 'h-9' : 'h-7')} onClick={() => addFolder()}>
+          <Button variant="ghost" size="sm" className={cn('flex-1 text-xs gap-1', isMobile ? 'h-9' : 'h-7')} onClick={() => { addFolder(); toast({ title: 'Folder created' }); }}>
             <FolderPlus className="h-3.5 w-3.5" /> Folder
+          </Button>
+        </div>
+
+        {/* Search & shortcuts */}
+        <div className="flex gap-1 px-3 py-1.5 border-b border-border">
+          <Button variant="ghost" size="sm" className="flex-1 text-xs gap-1 h-7 justify-start text-muted-foreground" onClick={onOpenSearch}>
+            <Search className="h-3.5 w-3.5" /> Search
+            <kbd className="ml-auto text-[10px] bg-muted px-1 rounded">⌘K</kbd>
+          </Button>
+          <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground" onClick={onOpenShortcuts} title="Keyboard shortcuts">
+            <Keyboard className="h-3.5 w-3.5" />
           </Button>
         </div>
 

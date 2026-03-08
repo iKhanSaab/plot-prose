@@ -32,8 +32,10 @@ function PinCard({
   const { updatePin, deletePin, updatePinTags } = useBook();
   const [isEditing, setIsEditing] = useState(false);
   const [showTagEditor, setShowTagEditor] = useState(false);
+  const [showImageInput, setShowImageInput] = useState(false);
   const [title, setTitle] = useState(pin.title);
   const [content, setContent] = useState(pin.content);
+  const [imageUrl, setImageUrl] = useState(pin.imageUrl || '');
 
   const handleSave = () => {
     updatePin(whiteboardId, { ...pin, title, content });

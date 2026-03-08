@@ -186,7 +186,7 @@ function NovelPicker() {
 }
 
 /* ─── Sidebar Content (shared between desktop & mobile) ─── */
-export function SidebarContent({ onItemSelect }: { onItemSelect?: () => void }) {
+export function SidebarContent({ onItemSelect, onOpenSearch, onOpenShortcuts }: { onItemSelect?: () => void; onOpenSearch?: () => void; onOpenShortcuts?: () => void }) {
   const {
     book, activeView, activeWhiteboardId, activeChapterId,
     setActiveWhiteboard, setActiveChapter, addWhiteboard, addChapter,
@@ -200,6 +200,7 @@ export function SidebarContent({ onItemSelect }: { onItemSelect?: () => void }) 
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; items: ContextMenuItem[] } | null>(null);
   const [mobileMenu, setMobileMenu] = useState<ContextMenuItem[] | null>(null);
   const [renaming, setRenaming] = useState<{ id: string; type: 'wb' | 'ch' | 'folder' } | null>(null);
+  const [confirmDialog, setConfirmDialog] = useState<{ title: string; description: string; onConfirm: () => void } | null>(null);
 
   const handleDrop = useCallback((itemId: string, itemType: 'whiteboard' | 'chapter', targetFolderId: string | null) => {
     if (targetFolderId) {

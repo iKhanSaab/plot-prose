@@ -1,7 +1,7 @@
 import { useBook } from '@/contexts/BookContext';
 import { Pin as PinType, TagColor } from '@/types/book';
 import { useState, useRef, useCallback } from 'react';
-import { Plus, GripVertical, X, Link, Tag } from 'lucide-react';
+import { Plus, GripVertical, X, Link, Tag, ImagePlus, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { TagEditor } from './TagEditor';
 
@@ -32,8 +32,10 @@ function PinCard({
   const { updatePin, deletePin, updatePinTags } = useBook();
   const [isEditing, setIsEditing] = useState(false);
   const [showTagEditor, setShowTagEditor] = useState(false);
+  const [showImageInput, setShowImageInput] = useState(false);
   const [title, setTitle] = useState(pin.title);
   const [content, setContent] = useState(pin.content);
+  const [imageUrl, setImageUrl] = useState(pin.imageUrl || '');
 
   const handleSave = () => {
     updatePin(whiteboardId, { ...pin, title, content });
@@ -86,6 +88,13 @@ function PinCard({
             <Tag className="h-3 w-3 text-muted-foreground" />
           </button>
           <button
+            onClick={(e) => { e.stopPropagation(); setShowImageInput(!showImageInput); }}
+            className="p-1 rounded hover:bg-muted transition-colors"
+            title="Attach image"
+          >
+            <ImagePlus className="h-3 w-3 text-muted-foreground" />
+          </button>
+          <button
             onClick={(e) => { e.stopPropagation(); onStartConnect(pin.id); }}
             className="p-1 rounded hover:bg-muted transition-colors"
             title="Connect to another pin"
@@ -108,6 +117,52 @@ function PinCard({
             tags={pin.tags}
             onChange={(tags) => updatePinTags(whiteboardId, pin.id, tags)}
             onClose={() => setShowTagEditor(false)}
+          />
+        </div>
+      )}
+
+      {/* Image input */}
+      {showImageInput && (
+        <div className="px-3 pb-1 no-drag">
+          <div className="flex items-center gap-1">
+            <input
+              className="flex-1 text-[10px] bg-transparent border border-border rounded px-1.5 py-1 outline-none placeholder:text-muted-foreground/50"
+              placeholder="Paste image URL..."
+              value={imageUrl}
+              onChange={e => setImageUrl(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter') {
+                  updatePin(whiteboardId, { ...pin, imageUrl: imageUrl.trim() || undefined });
+                  setShowImageInput(false);
+                }
+              }}
+            />
+            {pin.imageUrl && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setImageUrl('');
+                  updatePin(whiteboardId, { ...pin, imageUrl: undefined });
+                  setShowImageInput(false);
+                }}
+                className="p-0.5 rounded hover:bg-destructive/10 transition-colors"
+                title="Remove image"
+              >
+                <Trash2 className="h-3 w-3 text-muted-foreground hover:text-destructive" />
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Pin image */}
+      {pin.imageUrl && (
+        <div className="px-3 pb-1">
+          <img
+            src={pin.imageUrl}
+            alt={pin.title}
+            className="w-full h-24 object-cover rounded border border-border"
+            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
           />
         </div>
       )}

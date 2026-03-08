@@ -38,11 +38,20 @@ export interface Chapter {
   order: number;
 }
 
+export interface Folder {
+  id: string;
+  name: string;
+  whiteboardIds: string[];
+  chapterIds: string[];
+  order: number;
+}
+
 export interface Book {
   id: string;
   title: string;
   whiteboards: WhiteboardSheet[];
   chapters: Chapter[];
+  folders: Folder[];
 }
 
 export type ViewMode = 'whiteboard' | 'chapter';

@@ -42,6 +42,7 @@ export interface Chapter {
 export interface Folder {
   id: string;
   name: string;
+  parentFolderId?: string | null;
   whiteboardIds: string[];
   chapterIds: string[];
   order: number;

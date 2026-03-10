@@ -26,7 +26,7 @@ interface BookContextType extends AppState {
   duplicateChapter: (chapterId: string) => void;
   duplicateWhiteboard: (whiteboardId: string) => void;
   updatePinTags: (whiteboardId: string, pinId: string, tags: Tag[]) => void;
-  addFolder: (name?: string) => void;
+  addFolder: (parentFolderId?: string, name?: string) => void;
   renameFolder: (folderId: string, name: string) => void;
   deleteFolder: (folderId: string) => void;
   moveToFolder: (folderId: string, itemId: string, itemType: 'whiteboard' | 'chapter') => void;
@@ -311,9 +311,10 @@ export function BookProvider({ book: externalBook, onBookChange, children }: Boo
     }));
   }, [setBook]);
 
-  const addFolder = useCallback((name?: string) => {
+  const addFolder = useCallback((parentFolderId?: string, name?: string) => {
     const newFolder: Folder = {
       id: `folder-${Date.now()}`, name: name || `Folder ${book.folders.length + 1}`,
+      parentFolderId: parentFolderId ?? null,
       whiteboardIds: [], chapterIds: [], order: book.folders.length + 1,
     };
     setBook(prev => ({ ...prev, folders: [...prev.folders, newFolder] }));
@@ -324,7 +325,17 @@ export function BookProvider({ book: externalBook, onBookChange, children }: Boo
   }, [setBook]);
 
   const deleteFolder = useCallback((folderId: string) => {
-    setBook(prev => ({ ...prev, folders: prev.folders.filter(f => f.id !== folderId) }));
+    setBook(prev => {
+      const folderToDelete = prev.folders.find(f => f.id === folderId);
+      if (!folderToDelete) return prev;
+
+      return {
+        ...prev,
+        folders: prev.folders
+          .filter(f => f.id !== folderId)
+          .map(f => f.parentFolderId === folderId ? { ...f, parentFolderId: folderToDelete.parentFolderId ?? null } : f),
+      };
+    });
   }, [setBook]);
 
   const moveToFolder = useCallback((folderId: string, itemId: string, itemType: 'whiteboard' | 'chapter') => {

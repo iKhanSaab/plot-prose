@@ -70,6 +70,7 @@ function isFolder(value: unknown) {
     typeof value.id === 'string' &&
     typeof value.name === 'string' &&
     typeof value.order === 'number' &&
+    (value.parentFolderId === undefined || value.parentFolderId === null || typeof value.parentFolderId === 'string') &&
     isStringArray(value.whiteboardIds) &&
     isStringArray(value.chapterIds);
 }

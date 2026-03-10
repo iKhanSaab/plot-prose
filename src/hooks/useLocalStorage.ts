@@ -9,7 +9,12 @@ const DEBOUNCE_MS = 500;
 function withFolderDefaults(book: Book): Book {
   return {
     ...book,
-    folders: Array.isArray(book.folders) ? book.folders : [],
+    folders: Array.isArray(book.folders)
+      ? book.folders.map((folder) => ({
+          ...folder,
+          parentFolderId: folder.parentFolderId ?? null,
+        }))
+      : [],
   };
 }
 

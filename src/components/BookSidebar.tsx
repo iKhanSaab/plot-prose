@@ -243,6 +243,7 @@ export function SidebarContent({
 
   const ungroupedWbs = book.whiteboards.filter(wb => !folderItemIds.wbIds.has(wb.id));
   const ungroupedChs = book.chapters.filter(ch => !folderItemIds.chIds.has(ch.id));
+  const rootFolders = book.folders.filter(folder => !folder.parentFolderId);
 
   const toggleFolder = (id: string) => {
     setOpenFolders(prev => {
@@ -302,6 +303,7 @@ export function SidebarContent({
       { label: 'Rename', icon: <Edit2 className="h-3.5 w-3.5" />, onClick: () => setRenaming({ id: folderId, type: 'folder' }) },
       { label: 'New board inside', icon: <Layout className="h-3.5 w-3.5" />, onClick: () => { addWhiteboard(folderId); toast({ title: 'Board created' }); } },
       { label: 'New chapter inside', icon: <FileText className="h-3.5 w-3.5" />, onClick: () => { addChapter(folderId); toast({ title: 'Chapter created' }); } },
+      { label: 'New folder inside', icon: <FolderPlus className="h-3.5 w-3.5" />, onClick: () => { addFolder(folderId); toast({ title: 'Folder created' }); } },
       { label: 'Delete folder', icon: <Trash2 className="h-3.5 w-3.5" />, onClick: () => confirmDelete('Delete folder?', `"${f?.name}" will be deleted. Items inside will be ungrouped, not deleted.`, () => { deleteFolder(folderId); toast({ title: 'Folder deleted' }); }), destructive: true },
     ];
   };
@@ -367,6 +369,81 @@ export function SidebarContent({
     );
   };
 
+  const renderFolder = (folder: typeof book.folders[0], depth = 0): React.ReactNode => {
+    const isOpen = openFolders.has(folder.id);
+    const childFolders = book.folders.filter(candidate => candidate.parentFolderId === folder.id);
+    const folderWbs = book.whiteboards.filter(wb => folder.whiteboardIds.includes(wb.id));
+    const folderChs = book.chapters.filter(ch => folder.chapterIds.includes(ch.id));
+    const count = folderWbs.length + folderChs.length + childFolders.length;
+    const isDropTarget = dropTarget === folder.id;
+
+    return (
+      <div key={folder.id} data-folder-id={folder.id}>
+        <button
+          onClick={() => toggleFolder(folder.id)}
+          onContextMenu={e => showMenu(folderContextItems(folder.id), e)}
+          className={cn(
+            'flex items-center gap-2 w-full px-2 min-h-[44px] py-2 text-sm rounded-md hover:bg-sidebar-accent/50 transition-all text-sidebar-foreground',
+            isDropTarget && 'ring-2 ring-primary bg-primary/10'
+          )}
+          style={{ paddingLeft: `${8 + depth * 14}px` }}
+        >
+          {isOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+          <FolderOpen className="h-4 w-4 text-primary/70" />
+          {renaming?.id === folder.id && renaming.type === 'folder' ? (
+            <InlineRename value={folder.name} onSave={v => { renameFolder(folder.id, v); setRenaming(null); }} onCancel={() => setRenaming(null)} />
+          ) : (
+            <span className="truncate font-medium">{folder.name}</span>
+          )}
+          <span className="ml-auto text-[10px] text-muted-foreground">{count}</span>
+          {isMobile && (
+            <button onClick={e => { e.stopPropagation(); showMenu(folderContextItems(folder.id)); }} className="p-1 text-muted-foreground">
+              <MoreHorizontal className="h-4 w-4" />
+            </button>
+          )}
+        </button>
+        {isOpen && (
+          <div className="space-y-0.5 mt-0.5">
+            <div className="flex items-center gap-1 px-2 py-1.5" style={{ marginLeft: `${22 + depth * 14}px` }}>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 flex-1 justify-start gap-1.5 px-2 text-[11px] text-muted-foreground"
+                onClick={() => { addWhiteboard(folder.id); toast({ title: 'Board created' }); }}
+              >
+                <Layout className="h-3 w-3" />
+                Board
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 flex-1 justify-start gap-1.5 px-2 text-[11px] text-muted-foreground"
+                onClick={() => { addChapter(folder.id); toast({ title: 'Chapter created' }); }}
+              >
+                <FileText className="h-3 w-3" />
+                Chapter
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 flex-1 justify-start gap-1.5 px-2 text-[11px] text-muted-foreground"
+                onClick={() => { addFolder(folder.id); toast({ title: 'Folder created' }); }}
+              >
+                <FolderPlus className="h-3 w-3" />
+                Folder
+              </Button>
+            </div>
+            {childFolders.map(child => renderFolder(child, depth + 1))}
+            <div className="space-y-0.5" style={{ marginLeft: `${22 + depth * 14}px` }}>
+              {folderWbs.map(wb => renderWbItem(wb, true))}
+              {folderChs.map(ch => renderChItem(ch, true))}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <>
       <div className="flex flex-col h-full">
@@ -400,74 +477,7 @@ export function SidebarContent({
           {ungroupedWbs.map(wb => renderWbItem(wb, false))}
           {ungroupedChs.map(ch => renderChItem(ch, false))}
 
-          {book.folders.map(folder => {
-            const isOpen = openFolders.has(folder.id);
-            const folderWbs = book.whiteboards.filter(wb => folder.whiteboardIds.includes(wb.id));
-            const folderChs = book.chapters.filter(ch => folder.chapterIds.includes(ch.id));
-            const count = folderWbs.length + folderChs.length;
-            const isDropTarget = dropTarget === folder.id;
-            return (
-              <div key={folder.id} data-folder-id={folder.id}>
-                <button
-                  onClick={() => toggleFolder(folder.id)}
-                  onContextMenu={e => showMenu(folderContextItems(folder.id), e)}
-                  className={cn(
-                    'flex items-center gap-2 w-full px-2 min-h-[44px] py-2 text-sm rounded-md hover:bg-sidebar-accent/50 transition-all text-sidebar-foreground',
-                    isDropTarget && 'ring-2 ring-primary bg-primary/10'
-                  )}
-                >
-                  {isOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
-                  <FolderOpen className="h-4 w-4 text-primary/70" />
-                  {renaming?.id === folder.id && renaming.type === 'folder' ? (
-                    <InlineRename value={folder.name} onSave={v => { renameFolder(folder.id, v); setRenaming(null); }} onCancel={() => setRenaming(null)} />
-                  ) : (
-                    <span className="truncate font-medium">{folder.name}</span>
-                  )}
-                  <span className="ml-auto text-[10px] text-muted-foreground">{count}</span>
-                  {isMobile && (
-                    <button onClick={e => { e.stopPropagation(); showMenu(folderContextItems(folder.id)); }} className="p-1 text-muted-foreground">
-                      <MoreHorizontal className="h-4 w-4" />
-                    </button>
-                  )}
-                </button>
-                {isOpen && (
-                  <div className="ml-5 space-y-0.5 mt-0.5">
-                    <div className="flex items-center gap-1 px-2 py-1.5">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 flex-1 justify-start gap-1.5 px-2 text-[11px] text-muted-foreground"
-                        onClick={() => { addWhiteboard(folder.id); toast({ title: 'Board created' }); }}
-                      >
-                        <Layout className="h-3 w-3" />
-                        Board
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 flex-1 justify-start gap-1.5 px-2 text-[11px] text-muted-foreground"
-                        onClick={() => { addChapter(folder.id); toast({ title: 'Chapter created' }); }}
-                      >
-                        <FileText className="h-3 w-3" />
-                        Chapter
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 flex-1 justify-start gap-1.5 px-2 text-[11px] text-muted-foreground"
-                        onClick={() => { addFolder(); toast({ title: 'Folder created' }); }}
-                      >
-                        <FolderPlus className="h-3 w-3" />
-                        Folder
-                      </Button>
-                    </div>
-                    {folderWbs.map(wb => renderWbItem(wb, true))}
-                    {folderChs.map(ch => renderChItem(ch, true))}
-                  </div>
-                )}
-              </div>
-            );
-          })}
+          {rootFolders.map(folder => renderFolder(folder))}
         </nav>
 
         <div className="p-3 border-t border-border">

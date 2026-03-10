@@ -3,7 +3,7 @@ import { useLibrary } from '@/contexts/LibraryContext';
 import {
   Layout, FileText, Plus, ChevronDown, ChevronRight, PenTool,
   Trash2, Copy, Edit2, FolderOpen, FolderPlus, ArrowRightFromLine,
-  BookOpen, Check, MoreHorizontal, Search, Keyboard,
+  BookOpen, Check, MoreHorizontal, Search, Keyboard, Download, Upload,
 } from 'lucide-react';
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { cn } from '@/lib/utils';
@@ -14,6 +14,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { useLongPressDrag, DragState } from '@/hooks/useLongPressDrag';
 import { ConfirmDialog } from './ConfirmDialog';
 import { toast } from '@/hooks/use-toast';
+import { APP_NAME, APP_TAGLINE } from '@/lib/appInfo';
 
 type ContextMenuItem = {
   label: string;
@@ -116,7 +117,7 @@ function DragGhost({ drag }: { drag: DragState }) {
   );
 }
 
-function NovelPicker() {
+function NovelPicker({ onImportNovel, onExportNovel }: { onImportNovel?: () => void; onExportNovel?: () => void }) {
   const { library, activeBook, addNovel, switchNovel, renameNovel, deleteNovel } = useLibrary();
   const [open, setOpen] = useState(false);
   const [renamingId, setRenamingId] = useState<string | null>(null);
@@ -136,8 +137,8 @@ function NovelPicker() {
           <ChevronDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
         </button>
       </PopoverTrigger>
-      <PopoverContent className="w-60 p-1" align="start" sideOffset={4}>
-        <div className="space-y-0.5">
+      <PopoverContent className="w-64 p-0 overflow-hidden" align="start" sideOffset={4}>
+        <div className="max-h-72 overflow-y-auto p-1">
           {library.books.map(b => (
             <div key={b.id} className="group flex items-center">
               {renamingId === b.id ? (
@@ -167,10 +168,24 @@ function NovelPicker() {
               )}
             </div>
           ))}
+          <div className="border-t border-border mt-1 pt-1">
+            <button onClick={() => { addNovel(); setOpen(false); }} className="flex items-center gap-2 w-full px-2 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-muted rounded-sm transition-colors">
+              <Plus className="h-3.5 w-3.5" /> New Novel
+            </button>
+          </div>
         </div>
-        <div className="border-t border-border mt-1 pt-1">
-          <button onClick={() => { addNovel(); setOpen(false); }} className="flex items-center gap-2 w-full px-2 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-muted rounded-sm transition-colors">
-            <Plus className="h-3.5 w-3.5" /> New Novel
+        <div className="sticky bottom-0 border-t border-border bg-popover/95 backdrop-blur px-1 py-1">
+          <button
+            onClick={() => { onImportNovel?.(); setOpen(false); }}
+            className="flex items-center gap-2 w-full px-2 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-muted rounded-sm transition-colors"
+          >
+            <Upload className="h-3.5 w-3.5" /> Import backup
+          </button>
+          <button
+            onClick={() => { onExportNovel?.(); setOpen(false); }}
+            className="flex items-center gap-2 w-full px-2 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-muted rounded-sm transition-colors"
+          >
+            <Download className="h-3.5 w-3.5" /> Export backup
           </button>
         </div>
       </PopoverContent>
@@ -178,7 +193,19 @@ function NovelPicker() {
   );
 }
 
-export function SidebarContent({ onItemSelect, onOpenSearch, onOpenShortcuts }: { onItemSelect?: () => void; onOpenSearch?: () => void; onOpenShortcuts?: () => void }) {
+export function SidebarContent({
+  onItemSelect,
+  onOpenSearch,
+  onOpenShortcuts,
+  onImportNovel,
+  onExportNovel,
+}: {
+  onItemSelect?: () => void;
+  onOpenSearch?: () => void;
+  onOpenShortcuts?: () => void;
+  onImportNovel?: () => void;
+  onExportNovel?: () => void;
+}) {
   const {
     book, activeView, activeWhiteboardId, activeChapterId,
     setActiveWhiteboard, setActiveChapter, addWhiteboard, addChapter,
@@ -220,7 +247,8 @@ export function SidebarContent({ onItemSelect, onOpenSearch, onOpenShortcuts }: 
   const toggleFolder = (id: string) => {
     setOpenFolders(prev => {
       const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
       return next;
     });
   };
@@ -343,7 +371,7 @@ export function SidebarContent({ onItemSelect, onOpenSearch, onOpenShortcuts }: 
     <>
       <div className="flex flex-col h-full">
         <div className="px-2 pt-2">
-          <NovelPicker />
+          <NovelPicker onImportNovel={onImportNovel} onExportNovel={onExportNovel} />
         </div>
 
         <div className="flex gap-1 px-3 py-2 border-b border-border">
@@ -404,6 +432,35 @@ export function SidebarContent({ onItemSelect, onOpenSearch, onOpenShortcuts }: 
                 </button>
                 {isOpen && (
                   <div className="ml-5 space-y-0.5 mt-0.5">
+                    <div className="flex items-center gap-1 px-2 py-1.5">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 flex-1 justify-start gap-1.5 px-2 text-[11px] text-muted-foreground"
+                        onClick={() => { addWhiteboard(folder.id); toast({ title: 'Board created' }); }}
+                      >
+                        <Layout className="h-3 w-3" />
+                        Board
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 flex-1 justify-start gap-1.5 px-2 text-[11px] text-muted-foreground"
+                        onClick={() => { addChapter(folder.id); toast({ title: 'Chapter created' }); }}
+                      >
+                        <FileText className="h-3 w-3" />
+                        Chapter
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 flex-1 justify-start gap-1.5 px-2 text-[11px] text-muted-foreground"
+                        onClick={() => { addFolder(); toast({ title: 'Folder created' }); }}
+                      >
+                        <FolderPlus className="h-3 w-3" />
+                        Folder
+                      </Button>
+                    </div>
                     {folderWbs.map(wb => renderWbItem(wb, true))}
                     {folderChs.map(ch => renderChItem(ch, true))}
                   </div>
@@ -419,8 +476,8 @@ export function SidebarContent({ onItemSelect, onOpenSearch, onOpenShortcuts }: 
               <PenTool className="h-3.5 w-3.5 text-primary" />
             </div>
             <div className="flex-1">
-              <p className="text-xs font-medium text-foreground">Plot-On</p>
-              <p className="text-[10px] text-muted-foreground">Write. Map. Create.</p>
+              <p className="text-xs font-medium text-foreground">{APP_NAME}</p>
+              <p className="text-[10px] text-muted-foreground">{APP_TAGLINE}</p>
             </div>
             <DarkModeToggle />
           </div>
@@ -448,10 +505,25 @@ export function SidebarContent({ onItemSelect, onOpenSearch, onOpenShortcuts }: 
   );
 }
 
-export function BookSidebar({ onOpenSearch, onOpenShortcuts }: { onOpenSearch?: () => void; onOpenShortcuts?: () => void }) {
+export function BookSidebar({
+  onOpenSearch,
+  onOpenShortcuts,
+  onImportNovel,
+  onExportNovel,
+}: {
+  onOpenSearch?: () => void;
+  onOpenShortcuts?: () => void;
+  onImportNovel?: () => void;
+  onExportNovel?: () => void;
+}) {
   return (
     <aside className="w-64 min-w-[16rem] border-r border-border bg-sidebar flex flex-col h-screen">
-      <SidebarContent onOpenSearch={onOpenSearch} onOpenShortcuts={onOpenShortcuts} />
+      <SidebarContent
+        onOpenSearch={onOpenSearch}
+        onOpenShortcuts={onOpenShortcuts}
+        onImportNovel={onImportNovel}
+        onExportNovel={onExportNovel}
+      />
     </aside>
   );
 }

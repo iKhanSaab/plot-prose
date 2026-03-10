@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
-  <title id="title">Plot-On icon</title>
-  <desc id="desc">A notebook and pin board icon for the Plot-On writing app.</desc>
+  <title id="title">Webory icon</title>
+  <desc id="desc">A notebook and pin board icon for the Webory writing app.</desc>
   <rect width="512" height="512" rx="112" fill="#f5efe4"/>
   <rect x="90" y="94" width="188" height="324" rx="26" fill="#ffffff" stroke="#d2c4ae" stroke-width="16"/>
   <rect x="130" y="146" width="106" height="14" rx="7" fill="#d8871f"/>

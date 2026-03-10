@@ -43,7 +43,7 @@ export function ChapterEditor() {
 
   const wordCount = activeDraft.content.trim() ? activeDraft.content.trim().split(/\s+/).length : 0;
   const charCount = activeDraft.content.length;
-  const readingTime = Math.max(1, Math.ceil(wordCount / 250));
+  const isEmptyDraft = activeDraft.content.trim().length === 0;
 
   const handleContentChange = (content: string) => {
     setSaveStatus('saving');
@@ -97,8 +97,6 @@ export function ChapterEditor() {
             <p className="text-xs text-muted-foreground">{wordCount} words</p>
             <span className="text-xs text-muted-foreground">-</span>
             <p className="text-xs text-muted-foreground">{charCount.toLocaleString()} chars</p>
-            <span className="text-xs text-muted-foreground">-</span>
-            <p className="text-xs text-muted-foreground">~{readingTime} min read</p>
             <span className="text-xs text-muted-foreground">-</span>
 
             <span className={cn(
@@ -191,12 +189,23 @@ export function ChapterEditor() {
           'mx-auto py-8 px-6 transition-all',
           isEditorFocusMode ? 'max-w-2xl py-16' : 'max-w-3xl'
         )}>
+          {isEmptyDraft && (
+            <div className="mb-6 rounded-xl border border-border bg-background/80 p-4 shadow-sm">
+              <p className="text-sm font-semibold text-foreground">How to use the editor</p>
+              <div className="mt-2 grid gap-2 text-sm text-muted-foreground">
+                <p>1. Rename the chapter by double-clicking the title above.</p>
+                <p>2. Draft in the editor and let autosave handle the rest.</p>
+                <p>3. Open the draft menu to create alternate versions.</p>
+                <p>4. Use <span className="font-medium text-foreground">Ctrl/Cmd + Shift + F</span> for focus mode.</p>
+              </div>
+            </div>
+          )}
           <textarea
             ref={textareaRef}
             className="chapter-editor w-full min-h-[60vh] bg-transparent resize-none text-foreground placeholder:text-muted-foreground/40"
             value={activeDraft.content}
             onChange={e => handleContentChange(e.target.value)}
-            placeholder="Begin writing your chapter..."
+            placeholder="Start drafting this chapter..."
             spellCheck
           />
         </div>

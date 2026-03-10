@@ -1,16 +1,20 @@
 import { Moon, Sun } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
+const THEME_KEY = 'webory-theme';
+const LEGACY_THEME_KEY = 'ploton-theme';
+
 export function DarkModeToggle() {
   const [dark, setDark] = useState(() => {
     if (typeof window === 'undefined') return false;
-    return localStorage.getItem('ploton-theme') === 'dark' ||
-      (!localStorage.getItem('ploton-theme') && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    const storedTheme = localStorage.getItem(THEME_KEY) ?? localStorage.getItem(LEGACY_THEME_KEY);
+    return storedTheme === 'dark' ||
+      (!storedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches);
   });
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', dark);
-    localStorage.setItem('ploton-theme', dark ? 'dark' : 'light');
+    localStorage.setItem(THEME_KEY, dark ? 'dark' : 'light');
   }, [dark]);
 
   return (

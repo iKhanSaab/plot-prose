@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useCallback, useMemo } from
 import { Library, Book } from '@/types/book';
 import { defaultBook } from '@/data/defaultBook';
 import { loadLibrary, usePersistLibrary } from '@/hooks/useLocalStorage';
+import { createStarterBook, isLegacyDemoBook } from '@/data/starterBook';
 
 interface LibraryContextType {
   library: Library;
@@ -19,7 +20,19 @@ const LibraryContext = createContext<LibraryContextType | null>(null);
 
 function getInitialLibrary(): Library {
   const saved = loadLibrary();
-  if (saved && saved.books?.length > 0) return saved;
+  if (saved && saved.books?.length > 0) {
+    const shouldMigrateDemo =
+      saved.books.length === 1 &&
+      saved.activeBookId === saved.books[0].id &&
+      isLegacyDemoBook(saved.books[0]);
+
+    if (shouldMigrateDemo) {
+      const starterBook = createStarterBook({ id: saved.books[0].id });
+      return { books: [starterBook], activeBookId: starterBook.id };
+    }
+
+    return saved;
+  }
   return { books: [defaultBook], activeBookId: defaultBook.id };
 }
 
@@ -35,24 +48,10 @@ export function LibraryProvider({ children }: { children: React.ReactNode }) {
 
   const addNovel = useCallback((title?: string) => {
     const id = `book-${Date.now()}`;
-    const draftId = `draft-${Date.now()}`;
-    const newBook: Book = {
+    const newBook: Book = createStarterBook({
       id,
       title: title || 'Untitled Novel',
-      folders: [],
-      whiteboards: [{
-        id: `wb-${Date.now()}`,
-        name: 'Whiteboard 1',
-        pins: [],
-      }],
-      chapters: [{
-        id: `ch-${Date.now()}`,
-        title: 'Chapter 1',
-        order: 1,
-        activeDraftId: draftId,
-        drafts: [{ id: draftId, name: 'First Draft', content: '', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }],
-      }],
-    };
+    });
     setLibrary(prev => ({ books: [...prev.books, newBook], activeBookId: id }));
   }, []);
 

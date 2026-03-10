@@ -95,5 +95,11 @@ export function useLongPressDrag(
     onMouseLeave: () => { if (!dragRef.current) clearTimer(); },
   }), [clearTimer, startDrag]);
 
+  // Keep the callbacks installed above as stable listener references.
+  void onMouseMove;
+  void onMouseUp;
+  void onTouchMove;
+  void onTouchEnd;
+
   return { dragging, dropTarget, bindLongPress };
 }

@@ -12,6 +12,7 @@ import { Menu } from 'lucide-react';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/hooks/use-toast';
+import { APP_NAME } from '@/lib/appInfo';
 
 function WorkspaceContent() {
   const { activeView, isEditorFocusMode, toggleFocusMode, addChapter, addWhiteboard, book } = useBook();
@@ -45,14 +46,20 @@ function WorkspaceContent() {
       const imported = await importNovelFromJSON(file);
       importNovel(imported);
       toast({ title: 'Novel imported', description: imported.title });
-    } catch (err: any) {
-      toast({ title: 'Import failed', description: err.message, variant: 'destructive' });
+    } catch (err) {
+      const description = err instanceof Error ? err.message : 'Unknown import error';
+      toast({ title: 'Import failed', description, variant: 'destructive' });
     }
     e.target.value = '';
   };
 
   const openSearch = () => setSearchOpen(true);
   const openShortcuts = () => setShortcutsOpen(true);
+  const openImport = () => importRef.current?.click();
+  const exportNovel = () => {
+    exportNovelAsJSON(book);
+    toast({ title: 'Novel exported', description: 'Keep the JSON file somewhere safe for backup.' });
+  };
 
   if (isMobile) {
     return (
@@ -62,12 +69,18 @@ function WorkspaceContent() {
             <Button variant="ghost" size="icon" className="h-10 w-10" onClick={() => setMobileOpen(true)}>
               <Menu className="h-5 w-5" />
             </Button>
-            <span className="ml-2 text-sm font-semibold text-foreground truncate">Plot-On</span>
+            <span className="ml-2 text-sm font-semibold text-foreground truncate">{APP_NAME}</span>
           </header>
         )}
         <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
           <SheetContent side="left" className="w-[85vw] max-w-[320px] p-0 bg-sidebar">
-            <SidebarContent onItemSelect={() => setMobileOpen(false)} onOpenSearch={() => { setMobileOpen(false); openSearch(); }} onOpenShortcuts={() => { setMobileOpen(false); openShortcuts(); }} />
+            <SidebarContent
+              onItemSelect={() => setMobileOpen(false)}
+              onOpenSearch={() => { setMobileOpen(false); openSearch(); }}
+              onOpenShortcuts={() => { setMobileOpen(false); openShortcuts(); }}
+              onImportNovel={() => { setMobileOpen(false); openImport(); }}
+              onExportNovel={() => { setMobileOpen(false); exportNovel(); }}
+            />
           </SheetContent>
         </Sheet>
         <div className="flex-1 overflow-hidden">
@@ -82,7 +95,14 @@ function WorkspaceContent() {
 
   return (
     <div className="flex h-screen w-full overflow-hidden">
-      {!isEditorFocusMode && <BookSidebar onOpenSearch={openSearch} onOpenShortcuts={openShortcuts} />}
+      {!isEditorFocusMode && (
+        <BookSidebar
+          onOpenSearch={openSearch}
+          onOpenShortcuts={openShortcuts}
+          onImportNovel={openImport}
+          onExportNovel={exportNovel}
+        />
+      )}
       {activeView === 'whiteboard' ? <WhiteboardView /> : <ChapterEditor />}
       <GlobalSearch open={searchOpen} onOpenChange={setSearchOpen} />
       <KeyboardShortcutsModal open={shortcutsOpen} onOpenChange={setShortcutsOpen} />

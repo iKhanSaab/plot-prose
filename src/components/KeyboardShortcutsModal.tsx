@@ -7,6 +7,7 @@ const shortcuts = [
   { keys: ['Esc'], description: 'Exit focus mode' },
   { keys: ['?'], description: 'Show keyboard shortcuts' },
   { keys: ['Ctrl', 'E'], description: 'Export novel as JSON' },
+  { keys: ['Import'], description: 'Restore a JSON backup from the sidebar' },
   { keys: ['Ctrl', 'K'], description: 'Open search' },
 ];
 

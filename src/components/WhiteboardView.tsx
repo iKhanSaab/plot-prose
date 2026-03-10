@@ -5,6 +5,12 @@ import { Plus, GripVertical, X, Link, Tag, ImagePlus, Trash2 } from 'lucide-reac
 import { cn } from '@/lib/utils';
 import { TagEditor } from './TagEditor';
 
+const ZOOM_MIN = 0.25;
+const ZOOM_MAX = 3;
+const ZOOM_STEP = 0.1;
+const BOARD_WIDTH = 3000;
+const BOARD_HEIGHT = 2000;
+
 const TAG_STYLES: Record<TagColor, string> = {
   rose: 'bg-tag-rose text-tag-rose-text',
   sage: 'bg-tag-sage text-tag-sage-text',
@@ -218,6 +224,7 @@ export function WhiteboardView() {
   const panRef = useRef({ x: 0, y: 0 });
   const isPanningRef = useRef(false);
   const panStartRef = useRef({ x: 0, y: 0, panX: 0, panY: 0 });
+  const lastCanvasPressRef = useRef(0);
   const rafRef = useRef<number>(0);
 
   const [displayZoom, setDisplayZoom] = useState(100);
@@ -226,6 +233,17 @@ export function WhiteboardView() {
     if (transformRef.current) {
       transformRef.current.style.transform = `translate(${panRef.current.x}px, ${panRef.current.y}px) scale(${zoomRef.current})`;
     }
+  }, []);
+
+  const getCanvasPoint = useCallback((clientX: number, clientY: number) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return { x: 0, y: 0 };
+
+    const rect = canvas.getBoundingClientRect();
+    return {
+      x: (clientX - rect.left - panRef.current.x) / zoomRef.current,
+      y: (clientY - rect.top - panRef.current.y) / zoomRef.current,
+    };
   }, []);
 
   const handleCanvasClick = useCallback(() => {
@@ -240,8 +258,8 @@ export function WhiteboardView() {
     if (!whiteboard) return;
     const newPin: PinType = {
       id: `pin-${Date.now()}`,
-      x: (-panRef.current.x + 300) / zoomRef.current + Math.random() * 200,
-      y: (-panRef.current.y + 200) / zoomRef.current + Math.random() * 150,
+      x: Math.max(24, (-panRef.current.x + 300) / zoomRef.current + Math.random() * 200),
+      y: Math.max(24, (-panRef.current.y + 200) / zoomRef.current + Math.random() * 150),
       title: 'New Pin',
       content: '',
       tags: [],
@@ -254,19 +272,17 @@ export function WhiteboardView() {
     if (!whiteboard || isPanningRef.current) return;
     const pin = whiteboard.pins.find(p => p.id === pinId);
     if (!pin) return;
+    const point = getCanvasPoint(e.clientX, e.clientY);
     dragRef.current = {
       pinId,
-      offsetX: e.clientX / zoomRef.current - pin.x,
-      offsetY: e.clientY / zoomRef.current - pin.y,
+      offsetX: point.x - pin.x,
+      offsetY: point.y - pin.y,
       startX: pin.x,
       startY: pin.y,
     };
-  }, [whiteboard]);
+  }, [whiteboard, getCanvasPoint]);
 
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
     const handleMouseMove = (e: MouseEvent) => {
       if (isPanningRef.current) {
         panRef.current = {
@@ -279,9 +295,11 @@ export function WhiteboardView() {
       }
 
       const drag = dragRef.current;
-      if (!drag) return;
-      const newX = Math.max(0, e.clientX / zoomRef.current - drag.offsetX);
-      const newY = Math.max(0, e.clientY / zoomRef.current - drag.offsetY);
+      const canvas = canvasRef.current;
+      if (!drag || !canvas) return;
+      const point = getCanvasPoint(e.clientX, e.clientY);
+      const newX = Math.max(0, Math.min(BOARD_WIDTH - 200, point.x - drag.offsetX));
+      const newY = Math.max(0, Math.min(BOARD_HEIGHT - 120, point.y - drag.offsetY));
 
       const el = canvas.querySelector(`[data-pin-id="${drag.pinId}"]`) as HTMLElement;
       if (el) {
@@ -327,6 +345,7 @@ export function WhiteboardView() {
     };
 
     const handleMouseUp = () => {
+      const canvas = canvasRef.current;
       const drag = dragRef.current;
       if (drag && whiteboard) {
         const pin = whiteboard.pins.find(p => p.id === drag.pinId);
@@ -337,20 +356,18 @@ export function WhiteboardView() {
       dragRef.current = null;
       if (isPanningRef.current) {
         isPanningRef.current = false;
-        canvas.style.cursor = '';
+        if (canvas) canvas.style.cursor = '';
       }
     };
 
-    canvas.addEventListener('mousemove', handleMouseMove);
-    canvas.addEventListener('mouseup', handleMouseUp);
-    canvas.addEventListener('mouseleave', handleMouseUp);
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
 
     return () => {
-      canvas.removeEventListener('mousemove', handleMouseMove);
-      canvas.removeEventListener('mouseup', handleMouseUp);
-      canvas.removeEventListener('mouseleave', handleMouseUp);
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [whiteboard, updatePin, applyTransform]);
+  }, [whiteboard, updatePin, applyTransform, getCanvasPoint]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -358,8 +375,23 @@ export function WhiteboardView() {
 
     const handleWheel = (e: WheelEvent) => {
       e.preventDefault();
-      const delta = e.deltaY > 0 ? -0.1 : 0.1;
-      zoomRef.current = Math.min(3, Math.max(0.25, zoomRef.current + delta));
+      const rect = canvas.getBoundingClientRect();
+      const pointerX = e.clientX - rect.left;
+      const pointerY = e.clientY - rect.top;
+      const previousZoom = zoomRef.current;
+      const delta = e.deltaY > 0 ? -ZOOM_STEP : ZOOM_STEP;
+      const nextZoom = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, previousZoom + delta));
+      if (nextZoom === previousZoom) return;
+
+      const worldX = (pointerX - panRef.current.x) / previousZoom;
+      const worldY = (pointerY - panRef.current.y) / previousZoom;
+
+      zoomRef.current = nextZoom;
+      panRef.current = {
+        x: pointerX - worldX * nextZoom,
+        y: pointerY - worldY * nextZoom,
+      };
+
       cancelAnimationFrame(rafRef.current);
       rafRef.current = requestAnimationFrame(() => {
         applyTransform();
@@ -372,7 +404,15 @@ export function WhiteboardView() {
   }, [applyTransform]);
 
   const handleMiddleMouseDown = useCallback((e: React.MouseEvent) => {
-    if (e.button === 1 || (e.button === 0 && e.altKey)) {
+    const isCanvasBackground = e.target === e.currentTarget;
+    const now = Date.now();
+    const isDoubleHold = isCanvasBackground && e.button === 0 && now - lastCanvasPressRef.current < 300;
+
+    if (isCanvasBackground && e.button === 0) {
+      lastCanvasPressRef.current = now;
+    }
+
+    if (e.button === 1 || (isDoubleHold && zoomRef.current > 1)) {
       e.preventDefault();
       isPanningRef.current = true;
       if (canvasRef.current) canvasRef.current.style.cursor = 'grabbing';
@@ -407,6 +447,8 @@ export function WhiteboardView() {
       </div>
     );
   }
+
+  const isEmptyBoard = whiteboard.pins.length === 0;
 
   const lines: { from: PinType; to: PinType; key: string }[] = [];
   const seen = new Set<string>();
@@ -451,6 +493,21 @@ export function WhiteboardView() {
         onClick={handleCanvasClick}
         onMouseDown={handleMiddleMouseDown}
       >
+        {isEmptyBoard && !connectingFrom && (
+          <div className="absolute left-1/2 top-1/2 z-10 w-[min(32rem,calc(100%-2rem))] -translate-x-1/2 -translate-y-1/2 rounded-xl border border-border bg-background/95 p-5 shadow-lg backdrop-blur">
+            <p className="text-sm font-semibold text-foreground">How to use the storyboard</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Add pins for scenes, characters, conflicts, or research notes. Drag them around, then link related pins to map your story flow.
+            </p>
+            <div className="mt-4 grid gap-2 text-xs text-muted-foreground">
+              <p>1. Click <span className="font-medium text-foreground">Add Pin</span> to create your first note.</p>
+              <p>2. Double-click a pin title or body to edit it.</p>
+              <p>3. Use the link icon on a pin to connect ideas.</p>
+              <p>4. Scroll to zoom, then double-hold and drag on empty canvas to pan.</p>
+            </div>
+          </div>
+        )}
+
         {connectingFrom && (
           <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 bg-primary text-primary-foreground text-xs px-3 py-1.5 rounded-full shadow-lg animate-fade-in">
             Click another pin to connect - Click canvas to cancel
@@ -458,7 +515,7 @@ export function WhiteboardView() {
         )}
 
         <div className="absolute bottom-3 right-3 z-10 text-[10px] text-muted-foreground/50">
-          Scroll to zoom - Alt+drag to pan
+          Scroll to zoom - double-hold and drag to pan
         </div>
 
         <div
@@ -467,12 +524,15 @@ export function WhiteboardView() {
             transform: `translate(${panRef.current.x}px, ${panRef.current.y}px) scale(${zoomRef.current})`,
             transformOrigin: '0 0',
             position: 'relative',
-            minWidth: '3000px',
-            minHeight: '2000px',
+            minWidth: `${BOARD_WIDTH}px`,
+            minHeight: `${BOARD_HEIGHT}px`,
             willChange: 'transform',
+            backfaceVisibility: 'hidden',
+            WebkitFontSmoothing: 'antialiased',
+            textRendering: 'geometricPrecision',
           }}
         >
-          <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ minWidth: '3000px', minHeight: '2000px' }}>
+          <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ minWidth: `${BOARD_WIDTH}px`, minHeight: `${BOARD_HEIGHT}px` }}>
             <defs>
               <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
                 <polygon points="0 0, 8 3, 0 6" fill="hsl(var(--connection-line))" />

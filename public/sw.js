@@ -1,4 +1,4 @@
-const CACHE_NAME = "plot-on-shell-v1";
+const CACHE_NAME = "webory-shell-v1";
 const APP_SHELL = ["/", "/index.html", "/site.webmanifest", "/icon.svg", "/favicon.ico"];
 
 self.addEventListener("install", (event) => {

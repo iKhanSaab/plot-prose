@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Webory</string>
+    <string name="title_activity_main">Webory</string>
+    <string name="package_name">app.webory.app</string>
+    <string name="custom_url_scheme">app.webory.app</string>
+</resources>

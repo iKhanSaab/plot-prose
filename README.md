@@ -1,6 +1,6 @@
-# Plot-On
+# Webory
 
-Plot-On is a local-first writing workspace for planning novels on whiteboards, drafting chapters, and managing multiple books in the browser.
+Webory is a local-first writing workspace for planning novels on whiteboards, drafting chapters, and managing multiple books on your device.
 
 ## Launch readiness changes
 
@@ -30,6 +30,13 @@ npm install
 npm run dev
 ```
 
+Open the local URL from Vite, then start with the default empty workspace:
+
+- use the left sidebar to add boards, chapters, or folders
+- use the storyboard to map scenes and connect ideas with pins
+- switch to chapters to draft prose; changes autosave in the browser
+- use `Ctrl/Cmd + K` for search, `?` for shortcuts, and `Ctrl/Cmd + E` to export JSON
+
 ## Production build
 
 ```sh
@@ -40,12 +47,27 @@ npm run preview
 
 The app is a static frontend build. Any static host can serve the output from `dist/`.
 
+## Android build
+
+Webory now includes a Capacitor Android shell for Google Play packaging.
+
+```sh
+npm install
+npm run android:sync
+npm run android:debug
+```
+
+For release packaging and Play upload notes, see:
+
+- `docs/android-release.md`
+- `docs/play-store-listing.md`
+
 ## Release notes
 
 Web launch:
 
 - set your production domain
-- replace `public/privacy.html` contact details
+- verify the support email in `public/privacy.html`
 - generate production screenshots and listing copy
 - verify install behavior in Chrome, Edge, Safari, and mobile browsers
 
@@ -57,8 +79,14 @@ Desktop web downloads:
 App stores:
 
 - this repo is now in reasonable shape for a PWA-style web launch
-- direct Apple App Store and Google Play submission still requires a native wrapper and signing pipeline outside this repo
-- if you want true store binaries, the next step is adding Capacitor, Tauri, or Electron packaging rather than changing core product behavior
+- Google Play packaging is wired through Capacitor in `/android`
+- release AAB generation still depends on Java, Android SDK, and release signing material on the machine performing the build
+
+## Before launch
+
+- Add a real empty-state test for first-run behavior; the current suite is still a placeholder.
+- Verify localStorage quota behavior with large novels and keep backup/export reminders visible.
+- Test keyboard and drag behavior on touch devices and Safari before release.
 
 ## Data model
 

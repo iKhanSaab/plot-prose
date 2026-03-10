@@ -2,22 +2,44 @@ import { useEffect, useRef } from 'react';
 import { Book, Library } from '@/types/book';
 
 const LEGACY_KEY = 'ploton-book';
-const LIBRARY_KEY = 'ploton-library';
+const LEGACY_LIBRARY_KEY = 'ploton-library';
+const LIBRARY_KEY = 'webory-library';
 const DEBOUNCE_MS = 500;
+
+function withFolderDefaults(book: Book): Book {
+  return {
+    ...book,
+    folders: Array.isArray(book.folders) ? book.folders : [],
+  };
+}
+
+function normalizeLibrary(library: Library): Library {
+  return {
+    ...library,
+    books: library.books.map(withFolderDefaults),
+  };
+}
 
 export function loadLibrary(): Library | null {
   try {
     const raw = localStorage.getItem(LIBRARY_KEY);
-    if (raw) return JSON.parse(raw) as Library;
+    if (raw) return normalizeLibrary(JSON.parse(raw) as Library);
+
+    const legacyLibrary = localStorage.getItem(LEGACY_LIBRARY_KEY);
+    if (legacyLibrary) {
+      const library = normalizeLibrary(JSON.parse(legacyLibrary) as Library);
+      localStorage.setItem(LIBRARY_KEY, JSON.stringify(library));
+      return library;
+    }
 
     // Migration: wrap legacy single book into library
     const legacy = localStorage.getItem(LEGACY_KEY);
     if (legacy) {
-      const book = JSON.parse(legacy) as Book;
-      if (!book.folders) (book as any).folders = [];
+      const book = withFolderDefaults(JSON.parse(legacy) as Book);
       const lib: Library = { books: [book], activeBookId: book.id };
       localStorage.setItem(LIBRARY_KEY, JSON.stringify(lib));
       localStorage.removeItem(LEGACY_KEY);
+      localStorage.removeItem(LEGACY_LIBRARY_KEY);
       return lib;
     }
   } catch {

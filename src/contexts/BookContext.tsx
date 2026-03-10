@@ -59,7 +59,7 @@ export function BookProvider({ book: externalBook, onBookChange, children }: Boo
     setActiveChapterId(externalBook.chapters[0]?.id || null);
     setActiveView('whiteboard');
     setIsEditorFocusMode(false);
-  }, [externalBook.id]);
+  }, [externalBook]);
 
   const setBook = useCallback((updater: Book | ((prev: Book) => Book)) => {
     setBookInternal(prev => {

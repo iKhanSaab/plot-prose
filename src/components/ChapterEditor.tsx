@@ -2,7 +2,6 @@ import { useBook } from '@/contexts/BookContext';
 import { useState, useRef, useEffect } from 'react';
 import { Maximize2, Minimize2, Plus, FileText, ChevronDown, Trash2, Edit2, Check, Save } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { exportChapterAsMarkdown } from '@/lib/exportImport';
 
 export function ChapterEditor() {
   const {
@@ -72,7 +71,6 @@ export function ChapterEditor() {
       'flex-1 flex flex-col bg-editor-bg transition-all',
       isEditorFocusMode && 'fixed inset-0 z-50'
     )}>
-      {/* Header */}
       <div className={cn(
         'flex items-center justify-between px-6 py-3 border-b border-border bg-background/80 backdrop-blur-sm transition-opacity',
         isEditorFocusMode && 'opacity-0 hover:opacity-100'
@@ -97,13 +95,12 @@ export function ChapterEditor() {
           )}
           <div className="flex items-center gap-3 mt-0.5 flex-wrap">
             <p className="text-xs text-muted-foreground">{wordCount} words</p>
-            <span className="text-xs text-muted-foreground">·</span>
+            <span className="text-xs text-muted-foreground">-</span>
             <p className="text-xs text-muted-foreground">{charCount.toLocaleString()} chars</p>
-            <span className="text-xs text-muted-foreground">·</span>
+            <span className="text-xs text-muted-foreground">-</span>
             <p className="text-xs text-muted-foreground">~{readingTime} min read</p>
-            <span className="text-xs text-muted-foreground">·</span>
+            <span className="text-xs text-muted-foreground">-</span>
 
-            {/* Save status */}
             <span className={cn(
               'flex items-center gap-1 text-xs transition-colors',
               saveStatus === 'saved' ? 'text-muted-foreground' : 'text-primary'
@@ -111,9 +108,8 @@ export function ChapterEditor() {
               {saveStatus === 'saved' ? <Check className="h-3 w-3" /> : <Save className="h-3 w-3 animate-pulse" />}
               {saveStatus === 'saved' ? 'Saved' : 'Saving...'}
             </span>
-            <span className="text-xs text-muted-foreground">·</span>
+            <span className="text-xs text-muted-foreground">-</span>
 
-            {/* Draft selector */}
             <div className="relative">
               <button
                 onClick={() => setShowDrafts(!showDrafts)}
@@ -190,7 +186,6 @@ export function ChapterEditor() {
         </button>
       </div>
 
-      {/* Editor area */}
       <div className="flex-1 overflow-y-auto">
         <div className={cn(
           'mx-auto py-8 px-6 transition-all',
@@ -207,7 +202,6 @@ export function ChapterEditor() {
         </div>
       </div>
 
-      {/* Focus mode escape hint */}
       {isEditorFocusMode && (
         <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-xs text-muted-foreground/40 animate-fade-in">
           Press Esc or hover top to exit focus mode

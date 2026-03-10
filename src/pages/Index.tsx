@@ -11,12 +11,11 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { Menu } from 'lucide-react';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
-import { Toaster } from '@/components/ui/toaster';
 import { toast } from '@/hooks/use-toast';
 
 function WorkspaceContent() {
   const { activeView, isEditorFocusMode, toggleFocusMode, addChapter, addWhiteboard, book } = useBook();
-  const { addNovel } = useLibrary();
+  const { importNovel } = useLibrary();
   const isMobile = useIsMobile();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -44,7 +43,7 @@ function WorkspaceContent() {
     if (!file) return;
     try {
       const imported = await importNovelFromJSON(file);
-      addNovel(imported.title);
+      importNovel(imported);
       toast({ title: 'Novel imported', description: imported.title });
     } catch (err: any) {
       toast({ title: 'Import failed', description: err.message, variant: 'destructive' });
@@ -77,7 +76,6 @@ function WorkspaceContent() {
         <GlobalSearch open={searchOpen} onOpenChange={setSearchOpen} />
         <KeyboardShortcutsModal open={shortcutsOpen} onOpenChange={setShortcutsOpen} />
         <input ref={importRef} type="file" accept=".json" className="hidden" onChange={handleImport} />
-        <Toaster />
       </div>
     );
   }
@@ -89,7 +87,6 @@ function WorkspaceContent() {
       <GlobalSearch open={searchOpen} onOpenChange={setSearchOpen} />
       <KeyboardShortcutsModal open={shortcutsOpen} onOpenChange={setShortcutsOpen} />
       <input ref={importRef} type="file" accept=".json" className="hidden" onChange={handleImport} />
-      <Toaster />
     </div>
   );
 }

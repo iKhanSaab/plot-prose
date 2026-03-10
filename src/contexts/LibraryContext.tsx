@@ -7,6 +7,7 @@ interface LibraryContextType {
   library: Library;
   activeBook: Book;
   addNovel: (title?: string) => void;
+  importNovel: (book: Book) => void;
   deleteNovel: (id: string) => void;
   renameNovel: (id: string, title: string) => void;
   switchNovel: (id: string) => void;
@@ -55,6 +56,13 @@ export function LibraryProvider({ children }: { children: React.ReactNode }) {
     setLibrary(prev => ({ books: [...prev.books, newBook], activeBookId: id }));
   }, []);
 
+  const importNovel = useCallback((book: Book) => {
+    setLibrary(prev => ({
+      books: [...prev.books, book],
+      activeBookId: book.id,
+    }));
+  }, []);
+
   const deleteNovel = useCallback((id: string) => {
     setLibrary(prev => {
       const remaining = prev.books.filter(b => b.id !== id);
@@ -96,7 +104,7 @@ export function LibraryProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <LibraryContext.Provider value={{
-      library, activeBook, addNovel, deleteNovel, renameNovel, switchNovel, duplicateNovel, updateActiveBook,
+      library, activeBook, addNovel, importNovel, deleteNovel, renameNovel, switchNovel, duplicateNovel, updateActiveBook,
     }}>
       {children}
     </LibraryContext.Provider>

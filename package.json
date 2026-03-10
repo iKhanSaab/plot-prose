@@ -1,7 +1,8 @@
 {
-  "name": "vite_react_shadcn_ts",
+  "name": "plot-on",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
+  "description": "A local-first plotting and drafting workspace for novelists.",
   "type": "module",
   "scripts": {
     "dev": "vite",

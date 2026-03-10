@@ -243,22 +243,32 @@ export function BookProvider({ book: externalBook, onBookChange, children }: Boo
   }, [setBook]);
 
   const deleteChapter = useCallback((chapterId: string) => {
+    if (book.chapters.length <= 1) return;
     setBook(prev => ({
       ...prev,
       chapters: prev.chapters.filter(ch => ch.id !== chapterId),
       folders: prev.folders.map(f => ({ ...f, chapterIds: f.chapterIds.filter(id => id !== chapterId) })),
     }));
-    setActiveChapterId(prev => prev === chapterId ? null : prev);
-  }, [setBook]);
+    setActiveChapterId(prev => {
+      if (prev !== chapterId) return prev;
+      const nextChapter = book.chapters.find(ch => ch.id !== chapterId);
+      return nextChapter?.id || prev;
+    });
+  }, [book.chapters, setBook]);
 
   const deleteWhiteboard = useCallback((whiteboardId: string) => {
+    if (book.whiteboards.length <= 1) return;
     setBook(prev => ({
       ...prev,
       whiteboards: prev.whiteboards.filter(wb => wb.id !== whiteboardId),
       folders: prev.folders.map(f => ({ ...f, whiteboardIds: f.whiteboardIds.filter(id => id !== whiteboardId) })),
     }));
-    setActiveWhiteboardId(prev => prev === whiteboardId ? null : prev);
-  }, [setBook]);
+    setActiveWhiteboardId(prev => {
+      if (prev !== whiteboardId) return prev;
+      const nextWhiteboard = book.whiteboards.find(wb => wb.id !== whiteboardId);
+      return nextWhiteboard?.id || prev;
+    });
+  }, [book.whiteboards, setBook]);
 
   const renameWhiteboard = useCallback((whiteboardId: string, name: string) => {
     setBook(prev => ({ ...prev, whiteboards: prev.whiteboards.map(wb => wb.id === whiteboardId ? { ...wb, name } : wb) }));

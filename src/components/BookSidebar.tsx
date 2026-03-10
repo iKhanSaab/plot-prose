@@ -3,7 +3,7 @@ import { useLibrary } from '@/contexts/LibraryContext';
 import {
   Layout, FileText, Plus, ChevronDown, ChevronRight, PenTool,
   Trash2, Copy, Edit2, FolderOpen, FolderPlus, ArrowRightFromLine,
-  BookOpen, Check, MoreHorizontal, Search, Keyboard, Download,
+  BookOpen, Check, MoreHorizontal, Search, Keyboard,
 } from 'lucide-react';
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { cn } from '@/lib/utils';
@@ -15,7 +15,6 @@ import { useLongPressDrag, DragState } from '@/hooks/useLongPressDrag';
 import { ConfirmDialog } from './ConfirmDialog';
 import { toast } from '@/hooks/use-toast';
 
-/* ─── Types ─── */
 type ContextMenuItem = {
   label: string;
   icon: React.ReactNode;
@@ -24,7 +23,6 @@ type ContextMenuItem = {
   children?: { label: string; onClick: () => void }[];
 };
 
-/* ─── Context Menu (desktop right-click) ─── */
 function ContextMenu({ x, y, items, onClose }: { x: number; y: number; items: ContextMenuItem[]; onClose: () => void }) {
   const ref = useRef<HTMLDivElement>(null);
   const [subOpen, setSubOpen] = useState<number | null>(null);
@@ -64,11 +62,9 @@ function ContextMenu({ x, y, items, onClose }: { x: number; y: number; items: Co
   );
 }
 
-/* ─── Mobile Bottom Menu ─── */
 function MobileMenu({ items, onClose }: { items: ContextMenuItem[]; onClose: () => void }) {
   useEffect(() => {
     const handler = () => onClose();
-    // Close on back/outside tap after a frame
     const t = setTimeout(() => document.addEventListener('touchstart', handler, { once: true }), 100);
     return () => { clearTimeout(t); document.removeEventListener('touchstart', handler); };
   }, [onClose]);
@@ -94,7 +90,6 @@ function MobileMenu({ items, onClose }: { items: ContextMenuItem[]; onClose: () 
   );
 }
 
-/* ─── Inline rename input ─── */
 function InlineRename({ value, onSave, onCancel }: { value: string; onSave: (v: string) => void; onCancel: () => void }) {
   const [v, setV] = useState(value);
   return (
@@ -110,7 +105,6 @@ function InlineRename({ value, onSave, onCancel }: { value: string; onSave: (v: 
   );
 }
 
-/* ─── Drag Ghost ─── */
 function DragGhost({ drag }: { drag: DragState }) {
   return (
     <div
@@ -122,7 +116,6 @@ function DragGhost({ drag }: { drag: DragState }) {
   );
 }
 
-/* ─── Novel Picker ─── */
 function NovelPicker() {
   const { library, activeBook, addNovel, switchNovel, renameNovel, deleteNovel } = useLibrary();
   const [open, setOpen] = useState(false);
@@ -185,7 +178,6 @@ function NovelPicker() {
   );
 }
 
-/* ─── Sidebar Content (shared between desktop & mobile) ─── */
 export function SidebarContent({ onItemSelect, onOpenSearch, onOpenShortcuts }: { onItemSelect?: () => void; onOpenSearch?: () => void; onOpenShortcuts?: () => void }) {
   const {
     book, activeView, activeWhiteboardId, activeChapterId,
@@ -235,7 +227,6 @@ export function SidebarContent({ onItemSelect, onOpenSearch, onOpenShortcuts }: 
 
   const showMenu = (items: ContextMenuItem[], e?: React.MouseEvent) => {
     if (isMobile) {
-      // Flatten children for mobile (no submenus)
       const flat = items.flatMap(item =>
         item.children ? item.children.map(sub => ({ label: sub.label, icon: item.icon, onClick: sub.onClick })) : [item]
       );
@@ -351,12 +342,10 @@ export function SidebarContent({ onItemSelect, onOpenSearch, onOpenShortcuts }: 
   return (
     <>
       <div className="flex flex-col h-full">
-        {/* Novel picker */}
         <div className="px-2 pt-2">
           <NovelPicker />
         </div>
 
-        {/* Quick-create bar */}
         <div className="flex gap-1 px-3 py-2 border-b border-border">
           <Button variant="ghost" size="sm" className={cn('flex-1 text-xs gap-1', isMobile ? 'h-9' : 'h-7')} onClick={() => { addWhiteboard(); toast({ title: 'Board created' }); }}>
             <Layout className="h-3.5 w-3.5" /> Board
@@ -369,24 +358,20 @@ export function SidebarContent({ onItemSelect, onOpenSearch, onOpenShortcuts }: 
           </Button>
         </div>
 
-        {/* Search & shortcuts */}
         <div className="flex gap-1 px-3 py-1.5 border-b border-border">
           <Button variant="ghost" size="sm" className="flex-1 text-xs gap-1 h-7 justify-start text-muted-foreground" onClick={onOpenSearch}>
             <Search className="h-3.5 w-3.5" /> Search
-            <kbd className="ml-auto text-[10px] bg-muted px-1 rounded">⌘K</kbd>
+            <kbd className="ml-auto text-[10px] bg-muted px-1 rounded">Ctrl/Cmd+K</kbd>
           </Button>
           <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground" onClick={onOpenShortcuts} title="Keyboard shortcuts">
             <Keyboard className="h-3.5 w-3.5" />
           </Button>
         </div>
 
-        {/* Navigation */}
         <nav className="flex-1 overflow-y-auto p-2 space-y-0.5">
-          {/* Ungrouped items */}
           {ungroupedWbs.map(wb => renderWbItem(wb, false))}
           {ungroupedChs.map(ch => renderChItem(ch, false))}
 
-          {/* Folders */}
           {book.folders.map(folder => {
             const isOpen = openFolders.has(folder.id);
             const folderWbs = book.whiteboards.filter(wb => folder.whiteboardIds.includes(wb.id));
@@ -428,7 +413,6 @@ export function SidebarContent({ onItemSelect, onOpenSearch, onOpenShortcuts }: 
           })}
         </nav>
 
-        {/* Footer */}
         <div className="p-3 border-t border-border">
           <div className="flex items-center gap-2 px-2">
             <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center">
@@ -443,20 +427,16 @@ export function SidebarContent({ onItemSelect, onOpenSearch, onOpenShortcuts }: 
         </div>
       </div>
 
-      {/* Desktop context menu */}
       {contextMenu && !isMobile && (
         <ContextMenu x={contextMenu.x} y={contextMenu.y} items={contextMenu.items} onClose={() => setContextMenu(null)} />
       )}
 
-      {/* Mobile bottom menu */}
       {mobileMenu && (
         <MobileMenu items={mobileMenu} onClose={() => setMobileMenu(null)} />
       )}
 
-      {/* Drag ghost */}
       {dragging && <DragGhost drag={dragging} />}
 
-      {/* Confirm dialog */}
       <ConfirmDialog
         open={!!confirmDialog}
         onOpenChange={open => { if (!open) setConfirmDialog(null); }}
@@ -468,7 +448,6 @@ export function SidebarContent({ onItemSelect, onOpenSearch, onOpenShortcuts }: 
   );
 }
 
-/* ─── Main Export — wraps content in aside for desktop ─── */
 export function BookSidebar({ onOpenSearch, onOpenShortcuts }: { onOpenSearch?: () => void; onOpenShortcuts?: () => void }) {
   return (
     <aside className="w-64 min-w-[16rem] border-r border-border bg-sidebar flex flex-col h-screen">

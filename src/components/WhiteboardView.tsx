@@ -38,7 +38,6 @@ const PinCard = memo(function PinCard({
   const [imageUrl, setImageUrl] = useState(pin.imageUrl || '');
   const cardRef = useRef<HTMLDivElement>(null);
 
-  // Sync local state when pin changes externally
   useEffect(() => { setTitle(pin.title); }, [pin.title]);
   useEffect(() => { setContent(pin.content); }, [pin.content]);
   useEffect(() => { setImageUrl(pin.imageUrl || ''); }, [pin.imageUrl]);
@@ -65,7 +64,6 @@ const PinCard = memo(function PinCard({
         onDragStart(pin.id, e);
       }}
     >
-      {/* Header */}
       <div className="flex items-start gap-1 p-3 pb-1">
         <GripVertical className="h-4 w-4 text-muted-foreground/40 shrink-0 mt-0.5" />
         <div className="flex-1 min-w-0">
@@ -118,7 +116,6 @@ const PinCard = memo(function PinCard({
         </div>
       </div>
 
-      {/* Tag editor popover */}
       {showTagEditor && (
         <div className="relative px-3">
           <TagEditor
@@ -129,7 +126,6 @@ const PinCard = memo(function PinCard({
         </div>
       )}
 
-      {/* Image input */}
       {showImageInput && (
         <div className="px-3 pb-1 no-drag">
           <div className="flex items-center gap-1">
@@ -163,7 +159,6 @@ const PinCard = memo(function PinCard({
         </div>
       )}
 
-      {/* Pin image */}
       {pin.imageUrl && (
         <div className="px-3 pb-1">
           <img
@@ -175,7 +170,6 @@ const PinCard = memo(function PinCard({
         </div>
       )}
 
-      {/* Content */}
       <div className="px-3 pb-2">
         {isEditing ? (
           <textarea
@@ -195,7 +189,6 @@ const PinCard = memo(function PinCard({
         )}
       </div>
 
-      {/* Tags */}
       {pin.tags.length > 0 && (
         <div className="flex flex-wrap gap-1 px-3 pb-3">
           {pin.tags.map(tag => (
@@ -220,7 +213,6 @@ export function WhiteboardView() {
   const [selectedPin, setSelectedPin] = useState<string | null>(null);
   const [connectingFrom, setConnectingFrom] = useState<string | null>(null);
 
-  // Use refs for drag/pan/zoom to avoid re-renders during interaction
   const dragRef = useRef<{ pinId: string; offsetX: number; offsetY: number; startX: number; startY: number } | null>(null);
   const zoomRef = useRef(1);
   const panRef = useRef({ x: 0, y: 0 });
@@ -228,9 +220,7 @@ export function WhiteboardView() {
   const panStartRef = useRef({ x: 0, y: 0, panX: 0, panY: 0 });
   const rafRef = useRef<number>(0);
 
-  // State only for toolbar display (updated less frequently)
   const [displayZoom, setDisplayZoom] = useState(100);
-  const [, forceRender] = useState(0);
 
   const applyTransform = useCallback(() => {
     if (transformRef.current) {
@@ -238,7 +228,7 @@ export function WhiteboardView() {
     }
   }, []);
 
-  const handleCanvasClick = useCallback((e: React.MouseEvent) => {
+  const handleCanvasClick = useCallback(() => {
     if (connectingFrom) {
       setConnectingFrom(null);
       return;
@@ -273,13 +263,11 @@ export function WhiteboardView() {
     };
   }, [whiteboard]);
 
-  // Use native event listeners for mousemove/mouseup to avoid React overhead
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
     const handleMouseMove = (e: MouseEvent) => {
-      // Pan
       if (isPanningRef.current) {
         panRef.current = {
           x: panStartRef.current.panX + (e.clientX - panStartRef.current.x),
@@ -290,7 +278,6 @@ export function WhiteboardView() {
         return;
       }
 
-      // Drag pin — move DOM element directly, no state update
       const drag = dragRef.current;
       if (!drag) return;
       const newX = Math.max(0, e.clientX / zoomRef.current - drag.offsetX);
@@ -302,23 +289,27 @@ export function WhiteboardView() {
         el.style.top = `${newY}px`;
       }
 
-      // Update SVG lines in real-time
       const svgLines = canvas.querySelectorAll(`[data-conn-from="${drag.pinId}"], [data-conn-to="${drag.pinId}"]`);
       svgLines.forEach(line => {
         const fromId = line.getAttribute('data-conn-from')!;
         const toId = line.getAttribute('data-conn-to')!;
         const isFrom = fromId === drag.pinId;
 
-        let fx: number, fy: number, tx: number, ty: number;
+        let fx: number;
+        let fy: number;
+        let tx: number;
+        let ty: number;
 
         if (isFrom) {
-          fx = newX + 100; fy = newY + 40;
+          fx = newX + 100;
+          fy = newY + 40;
           const toEl = canvas.querySelector(`[data-pin-id="${toId}"]`) as HTMLElement;
           if (!toEl) return;
           tx = parseFloat(toEl.style.left) + 100;
           ty = parseFloat(toEl.style.top) + 40;
         } else {
-          tx = newX + 100; ty = newY + 40;
+          tx = newX + 100;
+          ty = newY + 40;
           const fromEl = canvas.querySelector(`[data-pin-id="${fromId}"]`) as HTMLElement;
           if (!fromEl) return;
           fx = parseFloat(fromEl.style.left) + 100;
@@ -327,18 +318,15 @@ export function WhiteboardView() {
 
         const mx = (fx + tx) / 2;
         const d = `M ${fx} ${fy} C ${mx} ${fy}, ${mx} ${ty}, ${tx} ${ty}`;
-        // Update both visual and hit-area paths
         const paths = line.querySelectorAll('path');
         paths.forEach(p => p.setAttribute('d', d));
       });
 
-      // Store current position for commit
       drag.startX = newX;
       drag.startY = newY;
     };
 
     const handleMouseUp = () => {
-      // Commit drag position to state
       const drag = dragRef.current;
       if (drag && whiteboard) {
         const pin = whiteboard.pins.find(p => p.id === drag.pinId);
@@ -364,7 +352,6 @@ export function WhiteboardView() {
     };
   }, [whiteboard, updatePin, applyTransform]);
 
-  // Wheel handler — native for passive: false
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -421,7 +408,6 @@ export function WhiteboardView() {
     );
   }
 
-  // Build unique connection lines
   const lines: { from: PinType; to: PinType; key: string }[] = [];
   const seen = new Set<string>();
   whiteboard.pins.forEach(pin => {
@@ -437,11 +423,10 @@ export function WhiteboardView() {
 
   return (
     <div className="flex-1 flex flex-col bg-canvas-bg overflow-hidden">
-      {/* Toolbar */}
       <div className="flex items-center justify-between px-4 py-2 border-b border-border bg-background/80 backdrop-blur-sm">
         <div>
           <h2 className="font-display text-lg font-semibold">{whiteboard.name}</h2>
-          <p className="text-xs text-muted-foreground">{whiteboard.pins.length} pins · {displayZoom}%</p>
+          <p className="text-xs text-muted-foreground">{whiteboard.pins.length} pins - {displayZoom}%</p>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -460,26 +445,22 @@ export function WhiteboardView() {
         </div>
       </div>
 
-      {/* Canvas */}
       <div
         ref={canvasRef}
         className="flex-1 relative canvas-grid overflow-hidden"
         onClick={handleCanvasClick}
         onMouseDown={handleMiddleMouseDown}
       >
-        {/* Connecting indicator */}
         {connectingFrom && (
           <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 bg-primary text-primary-foreground text-xs px-3 py-1.5 rounded-full shadow-lg animate-fade-in">
-            Click another pin to connect · Click canvas to cancel
+            Click another pin to connect - Click canvas to cancel
           </div>
         )}
 
-        {/* Zoom hint */}
         <div className="absolute bottom-3 right-3 z-10 text-[10px] text-muted-foreground/50">
-          Scroll to zoom · Alt+drag to pan
+          Scroll to zoom - Alt+drag to pan
         </div>
 
-        {/* Transformed canvas content */}
         <div
           ref={transformRef}
           style={{
@@ -491,7 +472,6 @@ export function WhiteboardView() {
             willChange: 'transform',
           }}
         >
-          {/* Connection lines SVG */}
           <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ minWidth: '3000px', minHeight: '2000px' }}>
             <defs>
               <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
@@ -520,7 +500,7 @@ export function WhiteboardView() {
                     className="cursor-pointer pointer-events-auto"
                     onClick={(e) => {
                       e.stopPropagation();
-                      if (whiteboard) disconnectPins(whiteboard.id, from.id, to.id);
+                      disconnectPins(whiteboard.id, from.id, to.id);
                     }}
                   >
                     <title>Click to disconnect</title>
@@ -530,7 +510,6 @@ export function WhiteboardView() {
             })}
           </svg>
 
-          {/* Pins */}
           {whiteboard.pins.map(pin => (
             <PinCard
               key={pin.id}

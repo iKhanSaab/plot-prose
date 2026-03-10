@@ -1,73 +1,78 @@
-# Welcome to your Lovable project
+# Plot-On
 
-## Project info
+Plot-On is a local-first writing workspace for planning novels on whiteboards, drafting chapters, and managing multiple books in the browser.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+## Launch readiness changes
 
-## How can I edit this code?
+This repo has been cleaned up for release use:
 
-There are several ways of editing your application.
+- real app metadata in `index.html`
+- installable web app manifest in `public/site.webmanifest`
+- basic offline/service-worker support in `public/sw.js`
+- privacy policy page in `public/privacy.html`
+- fixed JSON import behavior so imported novels are actually added to the library
+- removed duplicate toast mounting
+- replaced remaining scaffold branding and broken placeholder text
 
-**Use Lovable**
+## Stack
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+- React 18
+- TypeScript
+- Vite
+- Tailwind CSS
+- shadcn/ui primitives
+- localStorage for persistence
 
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
+## Local development
 
 ```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+npm install
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+## Production build
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+```sh
+npm install
+npm run build
+npm run preview
+```
 
-**Use GitHub Codespaces**
+The app is a static frontend build. Any static host can serve the output from `dist/`.
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+## Release notes
 
-## What technologies are used for this project?
+Web launch:
 
-This project is built with:
+- set your production domain
+- replace `public/privacy.html` contact details
+- generate production screenshots and listing copy
+- verify install behavior in Chrome, Edge, Safari, and mobile browsers
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+Desktop web downloads:
 
-## How can I deploy this project?
+- the app now exposes a manifest and service worker so supported browsers can install it as a standalone desktop web app
+- browser-installed desktop builds still use browser storage unless you wrap the app in Electron or Tauri
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+App stores:
 
-## Can I connect a custom domain to my Lovable project?
+- this repo is now in reasonable shape for a PWA-style web launch
+- direct Apple App Store and Google Play submission still requires a native wrapper and signing pipeline outside this repo
+- if you want true store binaries, the next step is adding Capacitor, Tauri, or Electron packaging rather than changing core product behavior
 
-Yes, you can!
+## Data model
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+- A `Library` contains many `Book` items and the `activeBookId`
+- A `Book` contains `whiteboards`, `chapters`, and `folders`
+- A `WhiteboardSheet` contains `pins`
+- A `Chapter` contains multiple `drafts`
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+## Testing
+
+Scripts available:
+
+- `npm run lint`
+- `npm run test`
+- `npm run build`
+
+The current environment used for this pass did not have `node`, `npm`, or `bun` available, so command verification could not be executed here.

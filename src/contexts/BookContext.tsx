@@ -92,6 +92,18 @@ interface BookProviderProps {
   children: React.ReactNode;
 }
 
+function getNextDraftName(drafts: Draft[]) {
+  const usedNumbers = drafts
+    .map(draft => {
+      const match = draft.name.match(/^Draft\s+(\d+)$/i);
+      return match ? Number.parseInt(match[1], 10) : null;
+    })
+    .filter((value): value is number => value !== null);
+
+  const nextNumber = usedNumbers.length > 0 ? Math.max(...usedNumbers) + 1 : drafts.length + 1;
+  return `Draft ${nextNumber}`;
+}
+
 // ─── Provider Component: BookProvider ──────────────────────────────────────────
 export function BookProvider({ book: externalBook, onBookChange, children }: BookProviderProps) {
   // ─── STATE: Internal book data ───────────────────────────────────────────────
@@ -267,18 +279,22 @@ export function BookProvider({ book: externalBook, onBookChange, children }: Boo
    * The new draft becomes the active one.
    */
   const addDraft = useCallback((chapterId: string) => {
-    const newDraft: Draft = {
-      id: `draft-${Date.now()}`, 
-      name: `Draft ${Date.now() % 1000}`, 
-      content: '',
-      createdAt: new Date().toISOString(), 
-      updatedAt: new Date().toISOString(),
-    };
     setBook(prev => ({
       ...prev,
-      chapters: prev.chapters.map(ch =>
-        ch.id === chapterId ? { ...ch, drafts: [...ch.drafts, newDraft], activeDraftId: newDraft.id } : ch
-      ),
+      chapters: prev.chapters.map(ch => {
+        if (ch.id !== chapterId) return ch;
+
+        const now = new Date().toISOString();
+        const newDraft: Draft = {
+          id: `draft-${Date.now()}`,
+          name: getNextDraftName(ch.drafts),
+          content: '',
+          createdAt: now,
+          updatedAt: now,
+        };
+
+        return { ...ch, drafts: [...ch.drafts, newDraft], activeDraftId: newDraft.id };
+      }),
     }));
   }, [setBook]);
 
@@ -340,7 +356,7 @@ export function BookProvider({ book: externalBook, onBookChange, children }: Boo
       title: `Untitled Chapter`,
       order: book.chapters.length + 1,
       activeDraftId: draftId,
-      drafts: [{ id: draftId, name: 'First Draft', content: '', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }],
+      drafts: [{ id: draftId, name: 'Draft 1', content: '', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }],
     };
     setBook(prev => ({
       ...prev,

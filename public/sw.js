@@ -1,5 +1,5 @@
-const CACHE_NAME = "webory-shell-v1";
-const APP_SHELL = ["/", "/index.html", "/site.webmanifest", "/icon.svg", "/favicon.ico"];
+const CACHE_NAME = "webory-shell-v2";
+const APP_SHELL = ["/", "/index.html", "/site.webmanifest", "/weboryLogo.svg"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(

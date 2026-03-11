@@ -9,7 +9,7 @@
   "lang": "en",
   "icons": [
     {
-      "src": "/icon.svg",
+      "src": "/weboryLogo.svg",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any"

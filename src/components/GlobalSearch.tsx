@@ -1,3 +1,18 @@
+/*
+FILE PURPOSE:
+This file renders the global search dialog for finding boards, chapters, folders, and pins in the active book.
+
+ROLE IN THE APP:
+It acts like a command palette for navigation. It converts current book state into searchable results and jumps the user to the selected destination.
+
+USED BY:
+- pages/Index.tsx opens this on Ctrl/Cmd+K and from sidebar actions
+- BookContext.tsx provides the data and navigation actions used during result selection
+
+EXPORTS:
+- GlobalSearch: modal search component for cross-book navigation inside the active project
+*/
+
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { useBook } from '@/contexts/BookContext';

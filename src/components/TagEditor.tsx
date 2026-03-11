@@ -1,8 +1,24 @@
+/*
+FILE PURPOSE:
+This file renders the inline tag editor used inside whiteboard pins.
+
+ROLE IN THE APP:
+It manages temporary input state for creating and removing tags, then reports the updated tag list back to the parent pin component.
+
+USED BY:
+- WhiteboardView.tsx renders this inside each pin card when tag editing is open
+
+EXPORTS:
+- TagEditor: inline popover-style tag editing component
+*/
+
 import { Tag, TagColor } from '@/types/book';
 import { useState } from 'react';
 import { Plus, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
+// This constant defines the set of tag colors supported by the app.
+// Keeping it in one place ensures the UI and stored data stay aligned.
 const COLORS: { value: TagColor; label: string; style: string }[] = [
   { value: 'rose', label: 'Rose', style: 'bg-tag-rose text-tag-rose-text' },
   { value: 'sage', label: 'Sage', style: 'bg-tag-sage text-tag-sage-text' },
@@ -16,6 +32,11 @@ interface TagEditorProps {
   onClose: () => void;
 }
 
+// Data flow:
+// 1. User types a label and chooses a color here.
+// 2. TagEditor builds the new tag object locally.
+// 3. onChange sends the updated tag array back to the parent pin.
+// 4. WhiteboardView persists that update through BookContext.
 export function TagEditor({ tags, onChange, onClose }: TagEditorProps) {
   const [newLabel, setNewLabel] = useState('');
   const [newColor, setNewColor] = useState<TagColor>('amber');

@@ -1,3 +1,20 @@
+/*
+FILE PURPOSE:
+This file creates starter book data for new novels and legacy migrations.
+
+ROLE IN THE APP:
+It is the factory for building a correctly shaped Book object with initial whiteboard and chapter content.
+
+USED BY:
+- LibraryContext.tsx uses createStarterBook when creating novels
+- defaultBook.ts uses it to define the app's initial fallback book
+- migration code uses isLegacyDemoBook to detect old seeded demo content
+
+EXPORTS:
+- createStarterBook
+- isLegacyDemoBook
+*/
+
 import { Book } from '@/types/book';
 
 function timestamp() {

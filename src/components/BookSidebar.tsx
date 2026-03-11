@@ -1,3 +1,20 @@
+/*
+FILE PURPOSE:
+This file renders the book navigation sidebar, including books, boards, chapters, folders, menus, and rename flows.
+
+ROLE IN THE APP:
+It is the main navigation surface for switching views and organizing content inside a book. On mobile it also drives the action-sheet style menus.
+
+USED BY:
+- pages/Index.tsx renders BookSidebar on desktop
+- pages/Index.tsx renders SidebarContent inside the mobile sheet
+- BookContext and LibraryContext feed this file with state and actions
+
+EXPORTS:
+- SidebarContent: reusable sidebar body for desktop and mobile
+- BookSidebar: desktop wrapper around SidebarContent
+*/
+
 import { useBook } from '@/contexts/BookContext';
 import { useLibrary } from '@/contexts/LibraryContext';
 import {
@@ -14,7 +31,36 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { useLongPressDrag, DragState } from '@/hooks/useLongPressDrag';
 import { ConfirmDialog } from './ConfirmDialog';
 import { toast } from '@/hooks/use-toast';
-import { APP_NAME, APP_TAGLINE } from '@/lib/appInfo';
+import { APP_ICON_PATH, APP_NAME, APP_TAGLINE } from '@/lib/appInfo';
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// COMPONENT: BookSidebar
+// ═══════════════════════════════════════════════════════════════════════════════
+// FILE PURPOSE:
+// The navigation sidebar showing the current book's structure: folders, chapters,
+// and whiteboards in an expandable tree view.
+//
+// ROLE IN THE APP:
+// Provides navigation between writing spaces, organization via folders, and quick
+// access to import/export and settings. Has two versions: desktop and mobile.
+//
+// USED BY:
+// - Index.tsx: Main layout sidebar (desktop) or drawer (mobile)
+//
+// EXPORTS:
+// - BookSidebar: Full sidebar with content and library picker
+// - SidebarContent: Just the tree content (used in mobile drawer)
+//
+// FEATURES:
+// - Tree view of folders, chapters, and whiteboards
+// - Expandable/collapsible folders
+// - Right-click context menu (desktop) or long-press menu (mobile/tablet)
+// - Drag-and-drop reordering (drag item to drag handle)
+// - Rename, duplicate, move, delete operations
+// - Import/Export buttons
+// - Book picker (switch between novels)
+// - Dark mode toggle
+// ═══════════════════════════════════════════════════════════════════════════════
 
 type ContextMenuItem = {
   label: string;
@@ -93,8 +139,30 @@ function MobileMenu({ items, onClose }: { items: ContextMenuItem[]; onClose: () 
 
 function InlineRename({ value, onSave, onCancel }: { value: string; onSave: (v: string) => void; onCancel: () => void }) {
   const [v, setV] = useState(value);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const input = inputRef.current;
+    if (!input) return;
+
+    const focusInput = () => {
+      input.focus();
+      input.select();
+    };
+
+    focusInput();
+    const timeoutId = window.setTimeout(focusInput, 50);
+    const frameId = window.requestAnimationFrame(focusInput);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+      window.cancelAnimationFrame(frameId);
+    };
+  }, []);
+
   return (
     <input
+      ref={inputRef}
       className="flex-1 bg-transparent border-b border-primary outline-none text-sm min-h-[28px]"
       value={v}
       onChange={e => setV(e.target.value)}
@@ -231,6 +299,7 @@ export function SidebarContent({
 
   const { dragging, dropTarget, bindLongPress } = useLongPressDrag(handleDrop);
 
+  // Track which boards/chapters already belong to folders so only loose items stay at the top level.
   const folderItemIds = useMemo(() => {
     const wbIds = new Set<string>();
     const chIds = new Set<string>();
@@ -243,6 +312,7 @@ export function SidebarContent({
 
   const ungroupedWbs = book.whiteboards.filter(wb => !folderItemIds.wbIds.has(wb.id));
   const ungroupedChs = book.chapters.filter(ch => !folderItemIds.chIds.has(ch.id));
+  // Root folders render after loose boards/chapters so folders always stay at the end.
   const rootFolders = book.folders.filter(folder => !folder.parentFolderId);
 
   const toggleFolder = (id: string) => {
@@ -311,25 +381,31 @@ export function SidebarContent({
   const renderWbItem = (wb: typeof book.whiteboards[0], inFolder: boolean) => {
     const isActive = activeView === 'whiteboard' && activeWhiteboardId === wb.id;
     const dragHandlers = bindLongPress(wb.id, 'whiteboard', wb.name);
+    const rowClassName = cn(
+      'flex items-center gap-2 flex-1 min-h-[44px] px-2.5 py-2 text-sm rounded-md transition-all',
+      isActive ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium' : 'text-sidebar-foreground hover:bg-sidebar-accent/50',
+      dragging?.id === wb.id && 'opacity-50 scale-95'
+    );
+
     return (
       <div key={wb.id} className="flex items-center group" {...dragHandlers}>
-        <button
-          onClick={() => { setActiveWhiteboard(wb.id); onItemSelect?.(); }}
-          onContextMenu={e => showMenu(wbContextItems(wb.id, inFolder), e)}
-          className={cn(
-            'flex items-center gap-2 flex-1 min-h-[44px] px-2.5 py-2 text-sm rounded-md transition-all',
-            isActive ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium' : 'text-sidebar-foreground hover:bg-sidebar-accent/50',
-            dragging?.id === wb.id && 'opacity-50 scale-95'
-          )}
-        >
-          <Layout className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-          {renaming?.id === wb.id && renaming.type === 'wb' ? (
+        {renaming?.id === wb.id && renaming.type === 'wb' ? (
+          <div className={rowClassName} onContextMenu={e => showMenu(wbContextItems(wb.id, inFolder), e)}>
+            <Layout className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
             <InlineRename value={wb.name} onSave={v => { renameWhiteboard(wb.id, v); setRenaming(null); }} onCancel={() => setRenaming(null)} />
-          ) : (
+            <span className="ml-auto text-[10px] text-muted-foreground">{wb.pins.length}</span>
+          </div>
+        ) : (
+          <button
+            onClick={() => { setActiveWhiteboard(wb.id); onItemSelect?.(); }}
+            onContextMenu={e => showMenu(wbContextItems(wb.id, inFolder), e)}
+            className={rowClassName}
+          >
+            <Layout className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
             <span className="truncate">{wb.name}</span>
-          )}
-          <span className="ml-auto text-[10px] text-muted-foreground">{wb.pins.length}</span>
-        </button>
+            <span className="ml-auto text-[10px] text-muted-foreground">{wb.pins.length}</span>
+          </button>
+        )}
         {isMobile && (
           <button onClick={() => showMenu(wbContextItems(wb.id, inFolder))} className="p-2 text-muted-foreground">
             <MoreHorizontal className="h-4 w-4" />
@@ -342,24 +418,29 @@ export function SidebarContent({
   const renderChItem = (ch: typeof book.chapters[0], inFolder: boolean) => {
     const isActive = activeView === 'chapter' && activeChapterId === ch.id;
     const dragHandlers = bindLongPress(ch.id, 'chapter', ch.title);
+    const rowClassName = cn(
+      'flex items-center gap-2 flex-1 min-h-[44px] px-2.5 py-2 text-sm rounded-md transition-all text-left',
+      isActive ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium' : 'text-sidebar-foreground hover:bg-sidebar-accent/50',
+      dragging?.id === ch.id && 'opacity-50 scale-95'
+    );
+
     return (
       <div key={ch.id} className="flex items-center group" {...dragHandlers}>
-        <button
-          onClick={() => { setActiveChapter(ch.id); onItemSelect?.(); }}
-          onContextMenu={e => showMenu(chContextItems(ch.id, inFolder), e)}
-          className={cn(
-            'flex items-center gap-2 flex-1 min-h-[44px] px-2.5 py-2 text-sm rounded-md transition-all text-left',
-            isActive ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium' : 'text-sidebar-foreground hover:bg-sidebar-accent/50',
-            dragging?.id === ch.id && 'opacity-50 scale-95'
-          )}
-        >
-          <PenTool className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-          {renaming?.id === ch.id && renaming.type === 'ch' ? (
+        {renaming?.id === ch.id && renaming.type === 'ch' ? (
+          <div className={rowClassName} onContextMenu={e => showMenu(chContextItems(ch.id, inFolder), e)}>
+            <PenTool className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
             <InlineRename value={ch.title} onSave={v => { updateChapterTitle(ch.id, v); setRenaming(null); }} onCancel={() => setRenaming(null)} />
-          ) : (
+          </div>
+        ) : (
+          <button
+            onClick={() => { setActiveChapter(ch.id); onItemSelect?.(); }}
+            onContextMenu={e => showMenu(chContextItems(ch.id, inFolder), e)}
+            className={rowClassName}
+          >
+            <PenTool className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
             <span className="truncate">{ch.title}</span>
-          )}
-        </button>
+          </button>
+        )}
         {isMobile && (
           <button onClick={() => showMenu(chContextItems(ch.id, inFolder))} className="p-2 text-muted-foreground">
             <MoreHorizontal className="h-4 w-4" />
@@ -369,6 +450,7 @@ export function SidebarContent({
     );
   };
 
+  // Render one folder branch recursively, keeping child folders after the folder's own boards/chapters.
   const renderFolder = (folder: typeof book.folders[0], depth = 0): React.ReactNode => {
     const isOpen = openFolders.has(folder.id);
     const childFolders = book.folders.filter(candidate => candidate.parentFolderId === folder.id);
@@ -379,29 +461,46 @@ export function SidebarContent({
 
     return (
       <div key={folder.id} data-folder-id={folder.id}>
-        <button
-          onClick={() => toggleFolder(folder.id)}
-          onContextMenu={e => showMenu(folderContextItems(folder.id), e)}
-          className={cn(
-            'flex items-center gap-2 w-full px-2 min-h-[44px] py-2 text-sm rounded-md hover:bg-sidebar-accent/50 transition-all text-sidebar-foreground',
-            isDropTarget && 'ring-2 ring-primary bg-primary/10'
-          )}
-          style={{ paddingLeft: `${8 + depth * 14}px` }}
-        >
-          {isOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
-          <FolderOpen className="h-4 w-4 text-primary/70" />
-          {renaming?.id === folder.id && renaming.type === 'folder' ? (
+        {renaming?.id === folder.id && renaming.type === 'folder' ? (
+          <div
+            onContextMenu={e => showMenu(folderContextItems(folder.id), e)}
+            className={cn(
+              'flex items-center gap-2 w-full px-2 min-h-[44px] py-2 text-sm rounded-md hover:bg-sidebar-accent/50 transition-all text-sidebar-foreground',
+              isDropTarget && 'ring-2 ring-primary bg-primary/10'
+            )}
+            style={{ paddingLeft: `${8 + depth * 14}px` }}
+          >
+            {isOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+            <FolderOpen className="h-4 w-4 text-primary/70" />
             <InlineRename value={folder.name} onSave={v => { renameFolder(folder.id, v); setRenaming(null); }} onCancel={() => setRenaming(null)} />
-          ) : (
+            <span className="ml-auto text-[10px] text-muted-foreground">{count}</span>
+            {isMobile && (
+              <button onClick={e => { e.stopPropagation(); showMenu(folderContextItems(folder.id)); }} className="p-1 text-muted-foreground">
+                <MoreHorizontal className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+        ) : (
+          <button
+            onClick={() => toggleFolder(folder.id)}
+            onContextMenu={e => showMenu(folderContextItems(folder.id), e)}
+            className={cn(
+              'flex items-center gap-2 w-full px-2 min-h-[44px] py-2 text-sm rounded-md hover:bg-sidebar-accent/50 transition-all text-sidebar-foreground',
+              isDropTarget && 'ring-2 ring-primary bg-primary/10'
+            )}
+            style={{ paddingLeft: `${8 + depth * 14}px` }}
+          >
+            {isOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+            <FolderOpen className="h-4 w-4 text-primary/70" />
             <span className="truncate font-medium">{folder.name}</span>
-          )}
-          <span className="ml-auto text-[10px] text-muted-foreground">{count}</span>
-          {isMobile && (
-            <button onClick={e => { e.stopPropagation(); showMenu(folderContextItems(folder.id)); }} className="p-1 text-muted-foreground">
-              <MoreHorizontal className="h-4 w-4" />
-            </button>
-          )}
-        </button>
+            <span className="ml-auto text-[10px] text-muted-foreground">{count}</span>
+            {isMobile && (
+              <button onClick={e => { e.stopPropagation(); showMenu(folderContextItems(folder.id)); }} className="p-1 text-muted-foreground">
+                <MoreHorizontal className="h-4 w-4" />
+              </button>
+            )}
+          </button>
+        )}
         {isOpen && (
           <div className="space-y-0.5 mt-0.5">
             <div className="flex items-center gap-1 px-2 py-1.5" style={{ marginLeft: `${22 + depth * 14}px` }}>
@@ -433,11 +532,11 @@ export function SidebarContent({
                 Folder
               </Button>
             </div>
-            {childFolders.map(child => renderFolder(child, depth + 1))}
             <div className="space-y-0.5" style={{ marginLeft: `${22 + depth * 14}px` }}>
               {folderWbs.map(wb => renderWbItem(wb, true))}
               {folderChs.map(ch => renderChItem(ch, true))}
             </div>
+            {childFolders.map(child => renderFolder(child, depth + 1))}
           </div>
         )}
       </div>
@@ -482,9 +581,7 @@ export function SidebarContent({
 
         <div className="p-3 border-t border-border">
           <div className="flex items-center gap-2 px-2">
-            <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center">
-              <PenTool className="h-3.5 w-3.5 text-primary" />
-            </div>
+            <img src={APP_ICON_PATH} alt="" className="h-8 w-8 shrink-0 object-contain" />
             <div className="flex-1">
               <p className="text-xs font-medium text-foreground">{APP_NAME}</p>
               <p className="text-[10px] text-muted-foreground">{APP_TAGLINE}</p>

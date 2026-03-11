@@ -436,13 +436,9 @@ It also defines:
 - a deployable privacy-policy page
 - currently includes a placeholder contact section that should be replaced before real submission
 
-### `public/icon.svg`
+### `public/weboryLogo.svg`
 
 - app icon used by the manifest and metadata
-
-### `public/favicon.ico`
-
-- legacy favicon already present in the repo
 
 ## Data flow summary
 

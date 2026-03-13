@@ -33,35 +33,6 @@ import { ConfirmDialog } from './ConfirmDialog';
 import { toast } from '@/hooks/use-toast';
 import { APP_ICON_PATH, APP_NAME, APP_TAGLINE } from '@/lib/appInfo';
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// COMPONENT: BookSidebar
-// ═══════════════════════════════════════════════════════════════════════════════
-// FILE PURPOSE:
-// The navigation sidebar showing the current book's structure: folders, chapters,
-// and whiteboards in an expandable tree view.
-//
-// ROLE IN THE APP:
-// Provides navigation between writing spaces, organization via folders, and quick
-// access to import/export and settings. Has two versions: desktop and mobile.
-//
-// USED BY:
-// - Index.tsx: Main layout sidebar (desktop) or drawer (mobile)
-//
-// EXPORTS:
-// - BookSidebar: Full sidebar with content and library picker
-// - SidebarContent: Just the tree content (used in mobile drawer)
-//
-// FEATURES:
-// - Tree view of folders, chapters, and whiteboards
-// - Expandable/collapsible folders
-// - Right-click context menu (desktop) or long-press menu (mobile/tablet)
-// - Drag-and-drop reordering (drag item to drag handle)
-// - Rename, duplicate, move, delete operations
-// - Import/Export buttons
-// - Book picker (switch between novels)
-// - Dark mode toggle
-// ═══════════════════════════════════════════════════════════════════════════════
-
 type ContextMenuItem = {
   label: string;
   icon: React.ReactNode;

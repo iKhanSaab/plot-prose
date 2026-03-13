@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Source+Sans+3:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Source+Sans+3:wght@300;400;500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -6,9 +6,6 @@
 
 @layer base {
   :root {
-    --font-display: 'Playfair Display', serif;
-    --font-body: 'Source Sans 3', sans-serif;
-
     --background: 38 40% 97%;
     --foreground: 220 20% 14%;
 
@@ -21,8 +18,8 @@
     --primary: 32 80% 50%;
     --primary-foreground: 38 40% 97%;
 
-    --secondary: 150 20% 88%;
-    --secondary-foreground: 150 25% 25%;
+    --secondary: 38 26% 91%;
+    --secondary-foreground: 220 20% 18%;
 
     --muted: 38 20% 92%;
     --muted-foreground: 220 10% 46%;
@@ -39,6 +36,29 @@
 
     --radius: 0.5rem;
 
+    --canvas: 38 25% 93%;
+    --canvas-grid: 38 15% 85%;
+    --pin-shadow: 0 8px 32px -8px hsl(220 20% 14% / 0.16);
+    --connection-line: 32 60% 60%;
+
+    --tag-red: 350 72% 62%;
+    --tag-orange: 24 88% 58%;
+    --tag-yellow: 45 92% 60%;
+    --tag-green: 145 52% 45%;
+    --tag-blue: 210 65% 56%;
+    --tag-purple: 268 52% 62%;
+    --tag-pink: 330 68% 64%;
+    --tag-teal: 178 58% 42%;
+
+    --tag-rose: 345 72% 84%;
+    --tag-rose-text: 342 58% 28%;
+    --tag-amber: 41 95% 78%;
+    --tag-amber-text: 31 72% 26%;
+    --tag-sage: 145 38% 78%;
+    --tag-sage-text: 145 45% 24%;
+    --tag-lavender: 262 62% 86%;
+    --tag-lavender-text: 262 42% 30%;
+
     --sidebar-background: 38 30% 94%;
     --sidebar-foreground: 220 15% 25%;
     --sidebar-primary: 32 80% 50%;
@@ -47,80 +67,6 @@
     --sidebar-accent-foreground: 220 20% 14%;
     --sidebar-border: 38 20% 88%;
     --sidebar-ring: 32 80% 50%;
-
-    /* Custom tokens */
-    --canvas-bg: 38 25% 93%;
-    --canvas-grid: 38 15% 85%;
-    --pin-bg: 0 0% 100%;
-    --pin-border: 38 20% 82%;
-    --pin-shadow: 0 4px 12px -2px hsl(220 20% 14% / 0.08);
-    --connection-line: 32 60% 60%;
-    --tag-rose: 350 50% 90%;
-    --tag-rose-text: 350 45% 35%;
-    --tag-sage: 150 30% 88%;
-    --tag-sage-text: 150 30% 28%;
-    --tag-amber: 38 70% 88%;
-    --tag-amber-text: 32 60% 30%;
-    --tag-lavender: 260 40% 90%;
-    --tag-lavender-text: 260 35% 35%;
-    --editor-bg: 38 40% 97%;
-    --editor-line-highlight: 38 30% 94%;
-  }
-
-  .dark {
-    --background: 220 20% 10%;
-    --foreground: 38 20% 90%;
-
-    --card: 220 18% 13%;
-    --card-foreground: 38 20% 90%;
-
-    --popover: 220 20% 10%;
-    --popover-foreground: 38 20% 90%;
-
-    --primary: 32 75% 55%;
-    --primary-foreground: 220 20% 10%;
-
-    --secondary: 150 15% 18%;
-    --secondary-foreground: 150 20% 80%;
-
-    --muted: 220 15% 18%;
-    --muted-foreground: 220 10% 55%;
-
-    --accent: 350 30% 20%;
-    --accent-foreground: 350 35% 80%;
-
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 100%;
-
-    --border: 220 15% 20%;
-    --input: 220 15% 20%;
-    --ring: 32 75% 55%;
-
-    --sidebar-background: 220 18% 11%;
-    --sidebar-foreground: 38 15% 80%;
-    --sidebar-primary: 32 75% 55%;
-    --sidebar-primary-foreground: 220 20% 10%;
-    --sidebar-accent: 220 15% 16%;
-    --sidebar-accent-foreground: 38 15% 85%;
-    --sidebar-border: 220 15% 18%;
-    --sidebar-ring: 32 75% 55%;
-
-    --canvas-bg: 220 18% 12%;
-    --canvas-grid: 220 15% 16%;
-    --pin-bg: 220 18% 15%;
-    --pin-border: 220 15% 22%;
-    --pin-shadow: 0 4px 12px -2px hsl(0 0% 0% / 0.3);
-    --connection-line: 32 60% 50%;
-    --tag-rose: 350 35% 22%;
-    --tag-rose-text: 350 40% 75%;
-    --tag-sage: 150 20% 18%;
-    --tag-sage-text: 150 25% 72%;
-    --tag-amber: 38 40% 20%;
-    --tag-amber-text: 38 50% 75%;
-    --tag-lavender: 260 25% 22%;
-    --tag-lavender-text: 260 30% 75%;
-    --editor-bg: 220 20% 10%;
-    --editor-line-highlight: 220 18% 13%;
   }
 }
 
@@ -131,68 +77,65 @@
 
   body {
     @apply bg-background text-foreground;
-    font-family: var(--font-body);
+    font-family: 'Source Sans 3', sans-serif;
   }
 
-  h1, h2, h3, h4, h5, h6 {
-    font-family: var(--font-display);
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: 'Libre Baskerville', serif;
   }
 }
 
-/* Custom scrollbar */
+@layer utilities {
+  .font-display {
+    font-family: 'Libre Baskerville', serif;
+  }
+
+  .font-body {
+    font-family: 'Source Sans 3', sans-serif;
+  }
+}
+
 ::-webkit-scrollbar {
   width: 6px;
 }
+
 ::-webkit-scrollbar-track {
   background: transparent;
 }
+
 ::-webkit-scrollbar-thumb {
   background: hsl(var(--border));
   border-radius: 3px;
 }
+
 ::-webkit-scrollbar-thumb:hover {
   background: hsl(var(--muted-foreground));
 }
 
-/* Whiteboard canvas styles */
 .canvas-grid {
-  background-image:
-    radial-gradient(circle, hsl(var(--canvas-grid)) 1px, transparent 1px);
+  background-color: hsl(var(--canvas));
+  background-image: radial-gradient(circle, hsl(var(--canvas-grid)) 1px, transparent 1px);
   background-size: 24px 24px;
 }
 
-/* Editor styles */
-.chapter-editor {
-  font-family: var(--font-body);
-  line-height: 1.8;
-  font-size: 1.125rem;
-}
-.chapter-editor:focus {
-  outline: none;
+.pin-card {
+  background: hsl(var(--card));
+  color: hsl(var(--card-foreground));
+  border-radius: var(--radius);
+  box-shadow: var(--pin-shadow);
+  transition: box-shadow 0.2s ease, transform 0.1s ease;
 }
 
-/* Pin connection line */
-.connection-line {
-  stroke: hsl(var(--connection-line));
-  stroke-width: 2;
-  fill: none;
-  stroke-dasharray: 6 4;
+.pin-card:hover {
+  box-shadow: 0 12px 40px -8px hsl(220 20% 14% / 0.22);
 }
 
-/* Fade-in animation */
-@keyframes fade-in {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-.animate-fade-in {
-  animation: fade-in 0.3s ease-out;
-}
-
-/* Scale-in for pins */
-@keyframes scale-in {
-  from { opacity: 0; transform: scale(0.9); }
-  to { opacity: 1; transform: scale(1); }
-}
-.animate-scale-in {
-  animation: scale-in 0.2s ease-out;
+.pin-card.selected {
+  outline: 2px solid hsl(var(--primary));
+  outline-offset: 2px;
 }

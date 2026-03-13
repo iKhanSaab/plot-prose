@@ -27,6 +27,8 @@ export interface Pin {
   id: string;           // Unique identifier for this pin
   x: number;            // X position on the whiteboard canvas
   y: number;            // Y position on the whiteboard canvas
+  width?: number;       // Optional custom width for board-style cards
+  height?: number;      // Optional custom height for board-style cards
   title: string;        // Brief title shown on the pin
   content: string;      // Longer description content
   imageUrl?: string;    // Optional image for visual reference
